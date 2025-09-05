@@ -30,6 +30,7 @@
 #include <Hardware/ExceptionHandlers.h>
 #include <Networking/Network.h>
 #include <Version.h>
+#include <cmath>
 
 #if SUPPORT_IOBITS
 # include <Platform/PortControl.h>
@@ -174,6 +175,7 @@ bool GCodes::HandleGcode(GCodeBuffer& gb, const StringRef& reply) THROWS(GCodeEx
 	}
 
 	GCodeResult result = GCodeResult::ok;
+	//TODO: check if needed for new commands
 	if (IsSimulating() && code > 4				  // move & dwell
 		&& code != 10 && code != 11				  // (un)retract
 		&& code != 17 && code != 18 && code != 19 // selected plane for arc moves
@@ -582,7 +584,257 @@ bool GCodes::HandleGcode(GCodeBuffer& gb, const StringRef& reply) THROWS(GCodeEx
 			gb.LatestMachineState().inverseTimeMode = false;
 			reprap.InputsUpdated();
 			break;
+		case 555:
+			if (gb.Seen("W"))
+			{
+				float W_val=gb.GetFValue();
+				uint32_t fanNum=1;
+				const auto fan = FindFan(fanNum);
+				if (fan.IsNull())
+				{
+					reply.printf("Fan %u not found", (unsigned int)fanNum);
+					return GCodeResult::error;
+				}
+				fan->ReportPortDetails(reply);
+				if (W_val > 1.0)
+					{
+						W_val = v/255.0;
+					}
+				// const float f=W_val;
+				for (MovementState& ms : moveStates)
+				{
+					if (ms.currentTool != nullptr && ms.currentTool->GetFanMapping().IsBitSet(fanNum))
+					{
+						ms.virtualFanSpeed = W_val;
+						if (ms.currentTool->GetFanMapping().IsOnlyBitSet(fanNum))
+						{
+							ms.currentTool->SetFansPwm(W_val);
+						}
+					}
+				}
+				result = reprap.GetFansManager().SetFanValue(fanNum, W_val, reply);
 
+			}
+			if gb.Seen("P")
+			{
+				float P_val=gb.GetFValue();
+				uint32_t fanNum=2;
+				const auto fan = FindFan(fanNum);
+				if (fan.IsNull())
+				{
+					reply.printf("Fan %u not found", (unsigned int)fanNum);
+					return GCodeResult::error;
+				}
+				fan->ReportPortDetails(reply);
+				if (P_val > 1.0)
+					{
+						P_val = v/255.0;
+					}
+				// const float f=P_val;
+				for (MovementState& ms : moveStates)
+				{
+					if (ms.currentTool != nullptr && ms.currentTool->GetFanMapping().IsBitSet(fanNum))
+					{
+						ms.virtualFanSpeed = P_val;
+						if (ms.currentTool->GetFanMapping().IsOnlyBitSet(fanNum))
+						{
+							ms.currentTool->SetFansPwm(P_val);
+						}
+					}
+				}
+
+				// Set the fan value here to ensure that the tool heaters' heating rates are correctly updated first
+				result = reprap.GetFansManager().SetFanValue(fanNum, P_val, reply);
+
+			}
+			if gb.Seen("E")
+			{
+				float E_val=gb.GetFValue();
+				uint32_t fanNum=0;
+				const auto fan = FindFan(fanNum);
+				if (fan.IsNull())
+				{
+					reply.printf("Fan %u not found", (unsigned int)fanNum);
+					return GCodeResult::error;
+				}
+				fan->ReportPortDetails(reply);
+				if (E_val > 1.0)
+					{
+						E_val = v/255.0;
+					}
+				// const float f=P_val;
+				for (MovementState& ms : moveStates)
+				{
+					if (ms.currentTool != nullptr && ms.currentTool->GetFanMapping().IsBitSet(fanNum))
+					{
+						ms.virtualFanSpeed = E_val;
+						if (ms.currentTool->GetFanMapping().IsOnlyBitSet(fanNum))
+						{
+							ms.currentTool->SetFansPwm(E_val);
+						}
+					}
+				}
+
+				// Set the fan value here to ensure that the tool heaters' heating rates are correctly updated first
+				result = reprap.GetFansManager().SetFanValue(fanNum, E_val, reply);
+
+			}
+			else
+			{
+				float E_val=0.0;
+				uint32_t fanNum=0;
+				const auto fan = FindFan(fanNum);
+				if (fan.IsNull())
+				{
+					reply.printf("Fan %u not found", (unsigned int)fanNum);
+					return GCodeResult::error;
+				}
+				fan->ReportPortDetails(reply);
+				// const float f=P_val;
+				for (MovementState& ms : moveStates)
+				{
+					if (ms.currentTool != nullptr && ms.currentTool->GetFanMapping().IsBitSet(fanNum))
+					{
+						ms.virtualFanSpeed = E_val;
+						if (ms.currentTool->GetFanMapping().IsOnlyBitSet(fanNum))
+						{
+							ms.currentTool->SetFansPwm(E_val);
+						}
+					}
+				}
+
+				// Set the fan value here to ensure that the tool heaters' heating rates are correctly updated first
+				result = reprap.GetFansManager().SetFanValue(fanNum, E_val, reply);
+
+			}
+			if gb.Seen('A')
+			{
+				float A_val=gb.GetFValue();
+				uint32_t fanNum=4;
+				const auto fan = FindFan(fanNum);
+				if (fan.IsNull())
+				{
+					reply.printf("Fan %u not found", (unsigned int)fanNum);
+					return GCodeResult::error;
+				}
+				fan->ReportPortDetails(reply);
+				if (A_val > 1.0)
+					{
+						A_val = v/255.0;
+					}
+				// const float f=P_val;
+				for (MovementState& ms : moveStates)
+				{
+					if (ms.currentTool != nullptr && ms.currentTool->GetFanMapping().IsBitSet(fanNum))
+					{
+						ms.virtualFanSpeed = A_val;
+						if (ms.currentTool->GetFanMapping().IsOnlyBitSet(fanNum))
+						{
+							ms.currentTool->SetFansPwm(A_val);
+						}
+					}
+				}
+
+				// Set the fan value here to ensure that the tool heaters' heating rates are correctly updated first
+				result = reprap.GetFansManager().SetFanValue(fanNum, A_val, reply);
+
+			}
+			else
+			{
+				float A_val=0.0;
+				uint32_t fanNum=4;
+				const auto fan = FindFan(fanNum);
+				if (fan.IsNull())
+				{
+					reply.printf("Fan %u not found", (unsigned int)fanNum);
+					return GCodeResult::error;
+				}
+				fan->ReportPortDetails(reply);
+				// const float f=P_val;
+				for (MovementState& ms : moveStates)
+				{
+					if (ms.currentTool != nullptr && ms.currentTool->GetFanMapping().IsBitSet(fanNum))
+					{
+						ms.virtualFanSpeed = A_val;
+						if (ms.currentTool->GetFanMapping().IsOnlyBitSet(fanNum))
+						{
+							ms.currentTool->SetFansPwm(A_val);
+						}
+					}
+				}
+
+				// Set the fan value here to ensure that the tool heaters' heating rates are correctly updated first
+				result = reprap.GetFansManager().SetFanValue(fanNum, A_val, reply);
+
+			}
+			
+			break;
+			// case 666:
+				// if (collisionChecker.IsValid())
+				// {
+					// reply.printf("For collision avoidance, axis %c position must be at least %.1fmm higher than axis %c",
+									// axisLetters[collisionChecker.GetUpperAxis()], (double)collisionChecker.GetMinSeparation(), axisLetters[collisionChecker.GetLowerAxis()]);
+				// }
+				// else
+				// {
+					// reply.copy("Collision avoidance is not active");
+				// }
+				// reply.printf("begin G666 %.5f" ,reprap.GetMove().GetSimulationTime());
+				// float X_t=0.0,Y_t=0.0,Z_t=0.0;
+				// float X_c,Y_c,Z_c;
+				// float m[MaxAxes];
+				// MovementState& ms = GetMovementState(gb);
+				// reprap.Getmove().GetCurrentMachinePosition(m,ms.GetNumber());
+				// X_c=m[0];
+				// Y_c=m[1];
+				// Z_c=m[2];
+				// if(gb.LatestMachineState().axesRelative)
+				// {
+					// if(gb.Seen('X'))
+						// X_t=gb.GetFValue()+X_c;
+					// else
+						// X_t=X_c;
+					// if(gb.Seen('Y'))
+						// Y_t=gb.GetFValue()+Y_c;
+					// else
+						// Y_t=Y_c;
+					// if(gb.Seen('Z'))
+						// Z_t=gb.GetFValue()+Z_c;
+					// else
+						// Z_t=Y_c;
+				// }
+				// else
+				// {
+					// if(gb.Seen('X'))
+						// X_t=gb.GetFValue();
+					// else
+						// X_t=X_c;
+					// if(gb.Seen('Y'))
+						// Y_t=gb.GetFValue();
+					// else
+						// Y_t=Y_c;
+					// if(gb.Seen('Z'))
+						// Z_t=gb.GetFValue();
+					// else
+						// Z_t=Y_c;
+				// }
+				// float d_X=X_t-X_c;
+				// float d_Y=Y_t-Y_c;
+				// float d_Z=Z_t-Z_c;
+				// float distance=sqrt(pow(d_X,2) + pow(d_Y,2) + pow(d_Z,2));
+				// int speed=600;
+				// if (gb.Seen('F'))
+					// speed=gb.GetIValue();
+
+
+				
+
+				
+
+
+
+				
+		
 		default:
 #if HAS_SBC_INTERFACE
 			// Send unknown non-binary codes to DSF so potential plugins can interpret them
