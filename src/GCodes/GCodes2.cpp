@@ -585,9 +585,249 @@ bool GCodes::HandleGcode(GCodeBuffer& gb, const StringRef& reply) THROWS(GCodeEx
 			reprap.InputsUpdated();
 			break;
 		case 555:
-			if (gb.Seen("W"))
+			float W=-1.0,P=-1.0,E=-1.0,A=-1.0;
+			if (gb.Seen('W'))
+				W=gb.GetFValue();
+			if (gb.Seen('P'))
+				P=gb.GetFValue();
+			if (gb.Seen('E'))
+				E=gb.GetFValue();
+			if (gb.Seen('A'))
+				A=gb.GetFValue();
+			reply.printf("G555 W:%.2f P:%.2f E:%.2f A:%.2f",W,P,E,A);
+			HandleG555(W,P,E,A);
+			
+			break;
+			case 666:
+				//M400
+				if (collisionChecker.IsValid())
+				{
+					reply.printf("For collision avoidance, axis %c position must be at least %.1fmm higher than axis %c",
+									axisLetters[collisionChecker.GetUpperAxis()], (double)collisionChecker.GetMinSeparation(), axisLetters[collisionChecker.GetLowerAxis()]);
+				}
+				else
+				{
+					reply.copy("Collision avoidance is not active");
+				}
+
+				reply.printf("begin G666 %.5f" ,reprap.GetMove().GetSimulationTime());
+				float X_t=0.0,Y_t=0.0,Z_t=0.0;
+				float X_c,Y_c,Z_c;
+				float m[MaxAxes];
+				MovementState& ms = GetMovementState(gb);
+				reprap.Getmove().GetCurrentMachinePosition(m,ms.GetNumber());
+				X_c=m[0];
+				Y_c=m[1];
+				Z_c=m[2];
+				if(gb.LatestMachineState().axesRelative)
+				{
+					if(gb.Seen('X'))
+						X_t=gb.GetFValue()+X_c;
+					else
+						X_t=X_c;
+					if(gb.Seen('Y'))
+						Y_t=gb.GetFValue()+Y_c;
+					else
+						Y_t=Y_c;
+					if(gb.Seen('Z'))
+						Z_t=gb.GetFValue()+Z_c;
+					else
+						Z_t=Z_c;
+				}
+				else
+				{
+					if(gb.Seen('X'))
+						X_t=gb.GetFValue();
+					else
+						X_t=X_c;
+					if(gb.Seen('Y'))
+						Y_t=gb.GetFValue();
+					else
+						Y_t=Y_c;
+					if(gb.Seen('Z'))
+						Z_t=gb.GetFValue();
+					else
+						Z_t=Z_c;
+				}
+				float d_X=X_t-X_c;
+				float d_Y=Y_t-Y_c;
+				float d_Z=Z_t-Z_c;
+				float distance=sqrt(pow(d_X,2) + pow(d_Y,2) + pow(d_Z,2));
+				float speed=600.0;
+				//M98
+				if (gb.Seen('F'))
+				{
+					speed=gb.GetIValue();								String<MaxFilenameLength> filename;
+					filename="/macros/WRITE_";
+					VariableSet vars;
+					vars.SetValue("V", "speed");
+					vars.SetValue("X", speed);
+					DoFileMacroWithParameters(gb, filename.c_str(), true, 666,vars);
+				}
+				else
+				{
+					VariableSet vars;
+					vars.SetValue("V", "speed");
+					vars.SetValue("X", speed);
+					String<MaxFilenameLength> filename;
+					filename="/macros/READ_";
+					DoFileMacroWithParameters(gb, filename.c_str(), true, 666,vars);
+					
+				}
+				//G90
+				gb.LatestMachineState().axesRelative = false;
+				reprap.InputsUpdated();
+
+
+				if (gb.Seen('E'))
+				{
+					float E_val=gb.GetFValue();
+					if (E_val<1.0)
+					{
+
+						BREAK_IF_NOT_EXECUTING
+						if (GetMovementState(gb).segmentsLeft != 0)						// do this check first to avoid locking movement unnecessarily
+						{
+							return false;
+						}
+						if (!LockMovement(gb))
+						{
+							return false;
+						}
+						try
+						{
+							if (!DoStraightMoveXYZ(gb,true,X_t,Y_t,Z_t,speed))
+							{
+								return false;
+							}
+							
+						} catch (const GCodeException& exc)
+						{
+							platform.GetEndstops().ClearEndstops();					// DoStraightMove may have enabled endstops before quitting, so disable them
+							gb.SetState(GCodeState::abortWhenMovementFinished);		// empty the queue before ending simulation, and force the user position to be restored
+							gb.LatestMachineState().SetError(exc);					// must do this *after* calling SetState
+						}
+						//TODO: G91 then return
+						gb.LatestMachineState().axesRelative = true;   // Axis movements (i.e. X, Y and Z)
+						reprap.InputsUpdated();
+						break;
+
+					}
+					else
+					{
+						float E_start = {100 * (distance / (speed / 60))};
+						
+						reply.printf("Target position X:%.2f Y:%.2f Z:%.2f E: %.2f, Speed: %.2f",X_t,Y_t,Z_t,E_start,speed);
+						///G555 W0.6 P0.6 E1 A1
+						HandleG555(0.6,0.6,1.0,1.0);
+						reply.printf("Started G38.5 at time %.5f",reprap.GetMove().GetSimulationTime());
+						if (!LockCurrentMovementSystemAndWaitForStandstill(gb))
+						{
+							return false;
+						}
+						BREAK_IF_NOT_EXECUTING
+						result = StraightProbexyze(gb,reply, X_t,Y_t,Z_t,E_start);
+						//G555 W0.85 P0.85 E1 A1
+						result = HandleG555(0.85,0.85,1.0,1.0);
+						//M400
+						if (collisionChecker.IsValid())
+						{
+							reply.printf("For collision avoidance, axis %c position must be at least %.1fmm higher than axis %c",
+											axisLetters[collisionChecker.GetUpperAxis()], (double)collisionChecker.GetMinSeparation(), axisLetters[collisionChecker.GetLowerAxis()]);
+						}
+						else
+						{
+							reply.copy("Collision avoidance is not active");
+						}
+						reply.printf("Finished G38  %.5f" ,reprap.GetMove().GetSimulationTime());
+						gb.DoDwellTime(50);
+						//G1 E{E_val} F2000
+						DoExtrusionOnly(gb,E_val,4000.0,true,true);
+						//G555 W0.4 P0.4 E1 A0
+						result = HandleG555(0.4,0.4,1.0,0.0);
+						//dist_left = sqrt(square(move.axes[0].machinePosition - var.X_t) + square(move.axes[1].machinePosition - var.Y_t) + square(move.axes[2].machinePosition - var.Z_t))
+						float dist_left = sqrt(pow((reprap.GetMove().GetCurrentMachinePosition(0)-X_t),2) + pow((reprap.GetMove().GetCurrentMachinePosition(1)-Y_t),2) + pow((reprap.GetMove().GetCurrentMachinePosition(2)-Z_t),2));
+						reply.printf("left %.2f mm retracting at time %.5f",dist_left,reprap.GetMove().GetSimulationTime());
+						// E_left = {100 * (var.dist_left / (global.speed / 60))}
+						float E_left = {100 * (dist_left / (speed / 60))};
+						//if (var.dist_left < (global.retract / 1.5))
+						//TODO: read global var
+						float retract=17;
+						if (dist_left < (retract / 1.5))
+						{
+							DoExtrusionOnly(gb,-retract,4000.0,true,true);
+							DoStraightMoveXYZ(gb,true,X_t,Y_t,Z_t,speed);
+						}
+						else{
+							//TODO: both in one function
+							DoExtrusionOnly(gb,-E_left,4000.0,true,true);
+							DoStraightMoveXYZ(gb,true,X_t,Y_t,Z_t,speed);
+						}
+						reply.printf("Finished retracting at time %.5f",reprap.GetMove().GetSimulationTime());	
+						
+					}
+
+
+				}
+				else{
+					if (GetMovementState(gb).segmentsLeft != 0)						// do this check first to avoid locking movement unnecessarily
+						{
+							return false;
+						}
+						if (!LockMovement(gb))
+						{
+							return false;
+						}
+						try
+						{
+							if (!DoStraightMoveXYZ(gb,true,X_t,Y_t,Z_t,speed))
+							{
+								return false;
+							}
+							
+						} catch (const GCodeException& exc)
+						{
+							platform.GetEndstops().ClearEndstops();					// DoStraightMove may have enabled endstops before quitting, so disable them
+							gb.SetState(GCodeState::abortWhenMovementFinished);		// empty the queue before ending simulation, and force the user position to be restored
+							gb.LatestMachineState().SetError(exc);					// must do this *after* calling SetState
+							
+						}
+						//TODO: G91 then return
+						gb.LatestMachineState().axesRelative = true;   // Axis movements (i.e. X, Y and Z)
+						reprap.InputsUpdated();
+						break;
+
+
+				}
+				break;		
+		default:
+#if HAS_SBC_INTERFACE
+			// Send unknown non-binary codes to DSF so potential plugins can interpret them
+			if (reprap.UsingSbcInterface() && reprap.GetSbcInterface().IsConnected() && !gb.IsBinary())
 			{
-				float W_val=gb.GetFValue();
+				gb.SendToSbc();
+				return false;
+			}
+#endif
+			result = TryMacroFile(gb);
+			break;
+		}
+#undef BREAK_IF_NOT_EXECUTING
+	}
+
+	return HandleResult(gb, result, reply, nullptr);
+}
+
+// Return true if the M-code number passed is a request for status
+static bool IsStatusRequestMCode(int code) noexcept
+{
+	return code == 105 || code == 109 || code == 114 || code == 115 || code == 122 || code == 408 || code == 409;
+}
+bool GCodes::HandleG555(float W=-1.0,float P=-1.0,float E=-1.0,float A=-1.0) THROWS(GCodeException)
+{
+if (W!=-1.0)
+			{
+				float W_val=W;
 				uint32_t fanNum=1;
 				const auto fan = FindFan(fanNum);
 				if (fan.IsNull())
@@ -615,9 +855,9 @@ bool GCodes::HandleGcode(GCodeBuffer& gb, const StringRef& reply) THROWS(GCodeEx
 				result = reprap.GetFansManager().SetFanValue(fanNum, W_val, reply);
 
 			}
-			if gb.Seen("P")
+			if (P!=-1.0)
 			{
-				float P_val=gb.GetFValue();
+				float P_val=P;
 				uint32_t fanNum=2;
 				const auto fan = FindFan(fanNum);
 				if (fan.IsNull())
@@ -647,9 +887,9 @@ bool GCodes::HandleGcode(GCodeBuffer& gb, const StringRef& reply) THROWS(GCodeEx
 				result = reprap.GetFansManager().SetFanValue(fanNum, P_val, reply);
 
 			}
-			if gb.Seen("E")
+			if (E!=-1.0)
 			{
-				float E_val=gb.GetFValue();
+				float E_val=E;
 				uint32_t fanNum=0;
 				const auto fan = FindFan(fanNum);
 				if (fan.IsNull())
@@ -707,9 +947,9 @@ bool GCodes::HandleGcode(GCodeBuffer& gb, const StringRef& reply) THROWS(GCodeEx
 				result = reprap.GetFansManager().SetFanValue(fanNum, E_val, reply);
 
 			}
-			if gb.Seen('A')
+			if (A!=-1.0)
 			{
-				float A_val=gb.GetFValue();
+				float A_val=A;
 				uint32_t fanNum=4;
 				const auto fan = FindFan(fanNum);
 				if (fan.IsNull())
@@ -767,96 +1007,308 @@ bool GCodes::HandleGcode(GCodeBuffer& gb, const StringRef& reply) THROWS(GCodeEx
 				result = reprap.GetFansManager().SetFanValue(fanNum, A_val, reply);
 
 			}
-			
-			break;
-			// case 666:
-				// if (collisionChecker.IsValid())
-				// {
-					// reply.printf("For collision avoidance, axis %c position must be at least %.1fmm higher than axis %c",
-									// axisLetters[collisionChecker.GetUpperAxis()], (double)collisionChecker.GetMinSeparation(), axisLetters[collisionChecker.GetLowerAxis()]);
-				// }
-				// else
-				// {
-					// reply.copy("Collision avoidance is not active");
-				// }
-				// reply.printf("begin G666 %.5f" ,reprap.GetMove().GetSimulationTime());
-				// float X_t=0.0,Y_t=0.0,Z_t=0.0;
-				// float X_c,Y_c,Z_c;
-				// float m[MaxAxes];
-				// MovementState& ms = GetMovementState(gb);
-				// reprap.Getmove().GetCurrentMachinePosition(m,ms.GetNumber());
-				// X_c=m[0];
-				// Y_c=m[1];
-				// Z_c=m[2];
-				// if(gb.LatestMachineState().axesRelative)
-				// {
-					// if(gb.Seen('X'))
-						// X_t=gb.GetFValue()+X_c;
-					// else
-						// X_t=X_c;
-					// if(gb.Seen('Y'))
-						// Y_t=gb.GetFValue()+Y_c;
-					// else
-						// Y_t=Y_c;
-					// if(gb.Seen('Z'))
-						// Z_t=gb.GetFValue()+Z_c;
-					// else
-						// Z_t=Y_c;
-				// }
-				// else
-				// {
-					// if(gb.Seen('X'))
-						// X_t=gb.GetFValue();
-					// else
-						// X_t=X_c;
-					// if(gb.Seen('Y'))
-						// Y_t=gb.GetFValue();
-					// else
-						// Y_t=Y_c;
-					// if(gb.Seen('Z'))
-						// Z_t=gb.GetFValue();
-					// else
-						// Z_t=Y_c;
-				// }
-				// float d_X=X_t-X_c;
-				// float d_Y=Y_t-Y_c;
-				// float d_Z=Z_t-Z_c;
-				// float distance=sqrt(pow(d_X,2) + pow(d_Y,2) + pow(d_Z,2));
-				// int speed=600;
-				// if (gb.Seen('F'))
-					// speed=gb.GetIValue();
+			return true;
 
-
-				
-
-				
-
-
-
-				
-		
-		default:
-#if HAS_SBC_INTERFACE
-			// Send unknown non-binary codes to DSF so potential plugins can interpret them
-			if (reprap.UsingSbcInterface() && reprap.GetSbcInterface().IsConnected() && !gb.IsBinary())
-			{
-				gb.SendToSbc();
-				return false;
-			}
-#endif
-			result = TryMacroFile(gb);
-			break;
-		}
-#undef BREAK_IF_NOT_EXECUTING
-	}
-
-	return HandleResult(gb, result, reply, nullptr);
 }
-
-// Return true if the M-code number passed is a request for status
-static bool IsStatusRequestMCode(int code) noexcept
+bool GCodes::DoStraightMoveXYZ(GCodeBuffer& gb,bool isCoordinated,float X_t,float Y_t,float Z_t, float Feed) THROWS(GCodeException)
 {
-	return code == 105 || code == 109 || code == 114 || code == 115 || code == 122 || code == 408 || code == 409;
+MovementState& ms = GetMovementState(gb);
+
+	// Set up default move parameters
+	ms.movementTool = ms.currentTool;
+	ms.moveType = 0;
+	ms.isCoordinated = isCoordinated;
+	ms.checkEndstops = false;
+	ms.reduceAcceleration = false;
+	ms.usePressureAdvance = false;
+
+#if SUPPORT_SCANNING_PROBES
+	ms.scanningProbeMove = false;
+#endif
+
+	ms.axesToSenseLength.Clear();
+	ms.axesToHome.Clear();
+	if (ms.moveFractionToSkip > 0.0)
+	{
+		ms.initialUserC0 = ms.restartInitialUserC0;
+		ms.initialUserC1 = ms.restartInitialUserC1;
+	}
+	else
+	{
+		const unsigned int selectedPlane = gb.LatestMachineState().selectedPlane;
+		ms.initialUserC0 = ms.currentUserPosition[(selectedPlane == 2) ? Y_AXIS : X_AXIS];
+		ms.initialUserC1 = ms.currentUserPosition[(selectedPlane == 0) ? Y_AXIS : Z_AXIS];
+	}
+	memcpyf(ms.initialCoords, ms.coords, numVisibleAxes);
+	float initialUserPosition[MaxAxes];
+	memcpyf(initialUserPosition, ms.currentUserPosition, numVisibleAxes);
+	AxesBitmap axesMentioned;
+    const float tx = X_t + ms.GetCurrentToolOffset(X_AXIS)/axisScaleFactors[X_AXIS];
+    const float ty = Y_t + ms.GetCurrentToolOffset(Y_AXIS)/axisScaleFactors[Y_AXIS];
+    const float tz = Z_t + ms.GetCurrentToolOffset(Z_AXIS)/axisScaleFactors[Z_AXIS];
+
+    if (tx != ms.currentUserPosition[X_AXIS]) { axesMentioned.SetBit(X_AXIS); ms.currentUserPosition[X_AXIS] = tx; }
+    if (ty != ms.currentUserPosition[Y_AXIS]) { axesMentioned.SetBit(Y_AXIS); ms.currentUserPosition[Y_AXIS] = ty; }
+    if (tz != ms.currentUserPosition[Z_AXIS]) { axesMentioned.SetBit(Z_AXIS); ms.currentUserPosition[Z_AXIS] = tz; }
+
+    // --- Feedrate: your code later uses moveTime = moveLength/(ms.feedRate * StepClockRate)
+    //               so ms.feedRate must be mm per step-clock tick.
+    if (!(isfinite(Feed)) || Feed <= 0.0f) {
+        UnlockAll(gb);
+        gb.ThrowGCodeException("invalid feed rate");
+    }
+    ms.feedRate = Feed / StepClockRate;
+
+    // --- Determine which real axes move (matches your ms.moveType==0 branch) ---
+    AxesBitmap realAxesMoving;
+    if (ms.currentTool == nullptr) {
+        realAxesMoving = axesMentioned;
+    } else {
+        realAxesMoving = axesMentioned & ~AxesBitmap::MakeFromBits(X_AXIS, Y_AXIS, Z_AXIS);
+        if (axesMentioned.IsBitSet(X_AXIS)) { realAxesMoving |= ms.currentTool->GetXAxisMap(); }
+        if (axesMentioned.IsBitSet(Y_AXIS)) { realAxesMoving |= ms.currentTool->GetYAxisMap(); }
+        if (axesMentioned.IsBitSet(Z_AXIS)) { realAxesMoving |= ms.currentTool->GetZAxisMap(); }
+    }
+
+    if (!doingManualBedProbe && CheckEnoughAxesHomed(realAxesMoving)) {
+        UnlockAll(gb);
+        gb.ThrowGCodeException("insufficient axes homed");
+    }
+
+    // --- Apply tool/babystep/Z-hop/scale as in your code ---
+#if SUPPORT_COORDINATE_ROTATION
+    if (g68Angle != 0.0 && gb.DoingCoordinateRotation()) {
+        float coords[MaxAxes];
+        memcpyf(coords, ms.currentUserPosition, MaxAxes);
+        RotateCoordinates(g68Angle, coords);
+        ToolOffsetTransform(ms, coords, ms.coords, axesMentioned);
+    } else
+#endif
+    {
+        ToolOffsetTransform(ms, axesMentioned);
+    }
+
+#if SUPPORT_KEEPOUT_ZONES
+    if (keepoutZone.DoesLineIntrude(ms.initialCoords, ms.coords)) {
+        UnlockAll(gb);
+        gb.ThrowGCodeException("straight move would enter keepout zone");
+    }
+#endif
+
+#if SUPPORT_ASYNC_MOVES
+    if (!collisionChecker.UpdatePositions(ms.coords, axesHomed)) {
+        UnlockAll(gb);
+        gb.ThrowGCodeException("potential collision detected");
+    }
+#endif
+
+    AxesBitmap axesToLimit = axesVirtuallyHomed & realAxesMoving;
+    if (doingManualBedProbe) { axesToLimit.ClearBit(Z_AXIS); }
+
+    const Kinematics& kin = reprap.GetMove().GetKinematics();
+    const LimitPositionResult lp =
+        kin.LimitPosition(ms.coords, ms.initialCoords, numVisibleAxes, axesToLimit, ms.isCoordinated, limitAxes);
+
+    switch (lp) {
+    case LimitPositionResult::adjusted:
+    case LimitPositionResult::adjustedAndIntermediateUnreachable:
+        if (machineType != MachineType::fff) {
+            UnlockAll(gb);
+            gb.ThrowGCodeException("target position outside machine limits");
+        }
+        ToolOffsetInverseTransform(ms);
+        if (lp == LimitPositionResult::adjusted) {
+            break;  // keep coordinated
+        }
+        // fallthrough
+    case LimitPositionResult::intermediateUnreachable:
+        if (ms.isCoordinated
+            && (machineType == MachineType::fff && !ms.hasPositiveExtrusion
+               ))
+        {
+            const LimitPositionResult lp2 =
+                kin.LimitPosition(ms.coords, ms.initialCoords, numVisibleAxes, axesToLimit, /*coordinated*/ false, limitAxes);
+            if (lp2 == LimitPositionResult::ok) {
+                ms.isCoordinated = false;   // uncoordinated fallback
+                break;
+            }
+        }
+        UnlockAll(gb);
+        gb.ThrowGCodeException("target position not reachable from current position");
+        // no break
+    case LimitPositionResult::ok:
+    default:
+        break;
+    }
+    const SegmentationType st = kin.GetSegmentationType();
+    float moveLengthSq =
+        fsquare(ms.currentUserPosition[X_AXIS] - initialUserPosition[X_AXIS]) +
+        fsquare(ms.currentUserPosition[Y_AXIS] - initialUserPosition[Y_AXIS]);
+    if (st.useZSegmentation) {
+        moveLengthSq += fsquare(ms.currentUserPosition[Z_AXIS] - initialUserPosition[Z_AXIS]);
+    }
+    const float moveLength = fastSqrtf(moveLengthSq);
+    const float moveTime   = moveLength / (ms.feedRate * StepClockRate);
+
+    if (st.useSegmentation && simulationMode != SimulationMode::normal &&
+        (ms.hasPositiveExtrusion || ms.isCoordinated || st.useG0Segmentation))
+    {
+        ms.totalSegments = (unsigned)max<long>(1, lrintf(min<float>(
+            moveLength * kin.GetReciprocalMinSegmentLength(),
+            moveTime   * kin.GetSegmentsPerSecond()
+        )));
+    } else {
+        ms.totalSegments = 1;
+    }
+    ms.totalSegments = max<unsigned>(ms.totalSegments, (unsigned)(moveTime * (1.0f/(float)MaxSegmentTime)));
+    ms.doingArcMove = false;
+    ms.linearAxesMentioned     = axesMentioned.Intersects(reprap.GetMove().GetLinearAxes());
+    ms.rotationalAxesMentioned = axesMentioned.Intersects(reprap.GetMove().GetRotationalAxes());
+
+    FinaliseMove(gb, ms);
+    UnlockAll(gb);
+    return true;
+}
+bool GCodes::DoExtrusionOnly(GCodeBuffer& gb,
+                                     float E_Val,
+                                     float feed_mm_s,
+                                     bool drivesRelative,
+                                     bool volumetricExtrusion) THROWS(GCodeException)
+{
+    // Ensure we can enqueue safely
+    if (!LockCurrentMovementSystemAndWaitForStandstill(gb)) {
+        return false;
+    }
+
+    MovementState& ms = GetMovementState(gb);
+
+    // ---- Initialise movement state for an extrusion-only move ----
+    ms.movementTool       = ms.currentTool;
+    ms.moveType           = 0;                 // normal move (not homing/raw/etc.)
+    ms.isCoordinated      = false;             // no axes are moving; irrelevant
+    ms.checkEndstops      = false;
+    ms.reduceAcceleration = false;
+    ms.usePressureAdvance = false;             // PA only applies when XYU... move with +E
+#if SUPPORT_SCANNING_PROBES
+    ms.scanningProbeMove  = false;
+#endif
+    ms.axesToSenseLength.Clear();
+    ms.axesToHome.Clear();
+
+    // Feed rate: planner expects mm per step-clock tick (your DoStraightMove math)
+    if (!(isfinite(feed_mm_s)) || feed_mm_s <= 0.0f) {
+        UnlockAll(gb);
+        gb.ThrowGCodeException("invalid feed rate");
+    }
+    ms.feedRate = feed_mm_s / StepClockRate;
+
+    // No axis motion: leave ms.currentUserPosition and ms.coords (axes part) untouched.
+    // Zero extruder drives (same as at top of LoadExtrusionFromGCode)
+    for (size_t drive = numTotalAxes; drive < MaxAxesPlusExtruders; drive++) {
+        ms.coords[drive] = 0.0f;
+    }
+    ms.hasPositiveExtrusion = false;
+    ms.moveStartVirtualExtruderPosition = ms.latestVirtualExtruderPosition;
+
+    // Must have a tool to extrude with
+    const Tool *_ecv_null const tool = ms.currentTool;
+    if (tool == nullptr) {
+        displayNoToolWarning = true;
+        UnlockAll(gb);
+        return false;
+    }
+
+    const size_t eMoveCount = tool->DriveCount();
+    if (eMoveCount == 0) {
+        // No extruder drives on tool: nothing to do
+        ms.totalSegments = 1;
+        ms.doingArcMove = false;
+        ms.linearAxesMentioned = false;
+        ms.rotationalAxesMentioned = false;
+        FinaliseMove(gb, ms);
+        UnlockAll(gb);
+        return true;
+    }
+
+    ExtrudersBitmap extrudersMoving;
+#if SUPPORT_ASYNC_MOVES && !PREALLOCATE_TOOL_AXES
+    AxesBitmap logicalDrivesMoving;
+#endif
+
+    float cookedTotalExtrusion = 0.0f;
+        // ---- Mixing path (single E value) ----
+        const float moveArg = E_Val;   // already converted distance
+
+        float requestedExtrusionAmount;
+        if (drivesRelative) {
+            requestedExtrusionAmount = moveArg;
+            ms.latestVirtualExtruderPosition += moveArg;
+        } else {
+            requestedExtrusionAmount = moveArg - ms.latestVirtualExtruderPosition;
+            ms.latestVirtualExtruderPosition = moveArg;
+        }
+
+        if (requestedExtrusionAmount > 0.0f) {
+            ms.hasPositiveExtrusion = true;
+        }
+
+        // raw totals for print progress (same guards as parser version)
+        if (ms.moveType == 0 && !gb.IsDoingFileMacro()) {
+            rawExtruderTotal += requestedExtrusionAmount;
+        }
+
+        float totalMix = 0.0f;
+        for (size_t eDrive = 0; eDrive < eMoveCount; eDrive++) {
+            const float thisMix = tool->GetMix()[eDrive];
+            if (thisMix != 0.0f) {
+                totalMix += thisMix;
+
+                const int extruder = tool->GetDrive(eDrive);
+                float extrusionAmount = requestedExtrusionAmount * thisMix;
+
+                if (volumetricExtrusion) {
+                    extrusionAmount *= volumetricExtrusionFactors[extruder];
+                }
+                if (eDrive == 0 && ms.moveType == 0 && !gb.IsDoingFileMacro()) {
+                    rawExtruderTotalByDrive[extruder] += extrusionAmount;
+                }
+
+                const float cooked = (ms.applyM220M221)
+                                     ? extrusionAmount * extrusionFactors[extruder]
+                                     : extrusionAmount;
+
+                ms.coords[ExtruderToLogicalDrive(extruder)] = cooked;
+                cookedTotalExtrusion += cooked;
+                extrudersMoving.SetBit(extruder);
+#if SUPPORT_ASYNC_MOVES && !PREALLOCATE_TOOL_AXES
+                logicalDrivesMoving.SetBit(ExtruderToLogicalDrive(extruder));
+#endif
+            }
+        }
+
+        // E3D behavior: scale feedrate for serial duals if using standard feedrate and no axes moving
+        if (ms.usingStandardFeedrate) {
+            ms.feedRate *= totalMix;
+        }
+
+
+#if SUPPORT_ASYNC_MOVES && !PREALLOCATE_TOOL_AXES
+    // Match the parser path for dynamic logical drive allocation
+    AllocateAxes(gb, ms, logicalDrivesMoving, ParameterLettersBitmap());
+#endif
+
+    // No axis movement -> single segment, no arcs
+    ms.totalSegments = 1;
+    ms.doingArcMove = false;
+
+    // No linear/rotational axes mentioned in an extrusion-only move
+    ms.linearAxesMentioned = false;
+    ms.rotationalAxesMentioned = false;
+
+    // Hand off to the planner the same way as other moves
+    FinaliseMove(gb, ms);
+    UnlockAll(gb);
+    return true;
 }
 
 bool GCodes::HandleMcode(GCodeBuffer& gb, const StringRef& reply) THROWS(GCodeException)

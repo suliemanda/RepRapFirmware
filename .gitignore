@@ -1,7 +1,7 @@
 # Object and intermediate files
 *.o
 *.d
-
+/.vs/
 # Misc
 /.settings/language.settings.xml
 

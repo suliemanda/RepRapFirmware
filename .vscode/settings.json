@@ -9,6 +9,9 @@
         "filesystem": "cpp",
         "*.inc": "cpp",
         "cmath": "cpp",
-        "complex": "cpp"
+        "complex": "cpp",
+        "stdexcept": "cpp",
+        "__locale": "cpp",
+        "locale": "cpp"
     }
 }

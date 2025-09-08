@@ -654,7 +654,7 @@ GCodeResult GCodes::StraightProbe(GCodeBuffer& gb, const StringRef& reply) THROW
 	{
 		// Signal error for G38.2 and G38.4
 		if (straightProbeSettings.SignalError())
-		{
+		{//TODO: Fix for E only moves 
 			reply.copy("No axis specified.");
 			return GCodeResult::error;
 		}
@@ -702,6 +702,156 @@ GCodeResult GCodes::StraightProbe(GCodeBuffer& gb, const StringRef& reply) THROW
 	if (gb.Seen('F'))
 	{
 		straightProbeSettings.SetFeedRateOverride(gb.GetSpeedFromMm(false));
+	}
+
+	gb.SetState(GCodeState::straightProbe0);
+	return GCodeResult::ok;
+}
+// do g38.[2-5] with explicit parameters
+GCodeResult GCodes::StraightProbexyze(GCodeBuffer& gb, const StringRef& reply,int8_t cmd_type float X_t=SILLY_Z_VALUE,float Y_t=SILLY_Z_VALUE,float Z_t=SILLY_Z_VALUE,float E=SILLY_Z_VALUE,float Feed=-1) THROWS(GCodeException)
+{
+	const int8_t fraction = cmd_type;
+	if (fraction < 2 || fraction > 5)
+	{
+		return GCodeResult::warningNotSupported;
+	}
+	/*
+	 * It is an error if:
+	 * # the current point is the same as the programmed point.
+	 * # no axis word is used
+	 * # the feed rate is zero
+	 * # the probe is already in the target state
+	 */
+
+	straightProbeSettings.Reset();
+
+	switch (fraction)
+	{
+	case 2:
+		straightProbeSettings.SetStraightProbeType(StraightProbeType::towardsWorkpieceErrorOnFailure);
+		break;
+
+	case 3:
+		straightProbeSettings.SetStraightProbeType(StraightProbeType::towardsWorkpiece);
+		break;
+
+	case 4:
+		straightProbeSettings.SetStraightProbeType(StraightProbeType::awayFromWorkpieceErrorOnFailure);
+		break;
+
+	case 5:
+		straightProbeSettings.SetStraightProbeType(StraightProbeType::awayFromWorkpiece);
+		break;
+	}
+
+	// Get the target coordinates (as user position) and check if we would move at all
+	float userPositionTarget[MaxAxes];
+	MovementState& ms = GetMovementState(gb);
+	memcpyf(userPositionTarget, ms.currentUserPosition, numVisibleAxes);
+	memcpyf(straightProbeSettings.GetTarget(), ms.coords, numVisibleAxes);		// this is needed in case there are mapped axes, see ToolOffsetTransform
+
+	bool seen = false;
+	bool doesMove = false;
+
+#if SUPPORT_ASYNC_MOVES
+	ParameterLettersBitmap axisLettersSeen;
+#endif
+
+	for (size_t axis = 0; axis < 3; axis++)
+	{
+		const char c = axisLetters[axis];
+		if (axis == 0 && X_t != SILLY_Z_VALUE) || (axis == 1 && Y_t != SILLY_Z_VALUE) || (axis == 2 && Z_t != SILLY_Z_VALUE)
+			seen = true;
+#if SUPPORT_ASYNC_MOVES
+		axisLettersSeen.SetBit(ParameterLetterToBitNumber(c));
+#endif
+		// Get the user provided target coordinate
+		// - If prefixed by G53 add the ToolOffset that will be subtracted below in ToolOffsetTransform as we ignore any offsets when G53 is active
+		// - otherwise add current workplace offsets so we go where the user expects to go
+		// comparable to how DoStraightMove/DoArcMove does it
+		float axisTarget = 0.0;
+		if (axis == 0)
+			axisTarget = X_t;
+		else if (axis == 1)
+			axisTarget = Y_t;
+		else if (axis == 2)
+			axisTarget = Z_t;
+		if (gb.LatestMachineState().axesRelative)
+		{
+			axisTarget += ms.currentUserPosition[axis];
+		}
+		else if (gb.LatestMachineState().g53Active)
+		{
+			axisTarget += ms.GetCurrentToolOffset(axis)/axisScaleFactors[axis];		// g53 ignores tool offsets and scale factors as well as workplace coordinates
+		}
+		else if (!gb.LatestMachineState().runningSystemMacro)
+		{
+			axisTarget += GetWorkplaceOffset(gb, axis);
+		}
+
+		if (axisTarget != userPositionTarget[axis])
+		{
+			doesMove = true;
+		}
+		userPositionTarget[axis] = axisTarget;
+		straightProbeSettings.AddMovingAxis(axis);
+		
+	}
+
+	// No axis letters seen
+	if (!seen)
+	{
+		// Signal error for G38.2 and G38.4
+		
+		if (straightProbeSettings.SignalError())
+		{
+			reply.copy("No axis specified.");
+			return GCodeResult::error;
+		}
+		return GCodeResult::ok;
+	}
+
+	// At least one axis seen but it would not result in movement
+	else if (!doesMove)
+	{
+		// Signal error for G38.2 and G38.4
+		if (straightProbeSettings.SignalError())
+		{
+			reply.copy("Target equals current position.");
+			return GCodeResult::error;
+		}
+		return GCodeResult::ok;
+	}
+
+#if SUPPORT_ASYNC_MOVES
+	AllocateAxes(gb, ms, straightProbeSettings.GetMovingAxes(), axisLettersSeen);
+#endif
+
+	// Convert target user position to machine coordinates and save them in StraightProbeSettings
+#if SUPPORT_COORDINATE_ROTATION
+	if (g68Angle != 0.0 && gb.DoingCoordinateRotation())
+	{
+		RotateCoordinates(g68Angle, userPositionTarget);
+	}
+#endif
+
+	ToolOffsetTransform(ms, userPositionTarget, straightProbeSettings.GetTarget());
+
+	// Find which probe we are using
+	const size_t probeToUse = (gb.Seen('K') || gb.Seen('P')) ? gb.GetUIValue() : 0;
+
+	// Check if this probe exists to not run into a nullptr dereference later
+	if (platform.GetEndstops().GetZProbe(probeToUse).IsNull())
+	{
+		reply.catf("Invalid probe number: %d", probeToUse);
+		return GCodeResult::error;
+	}
+	straightProbeSettings.SetZProbeToUse(probeToUse);
+
+	// Check if feed rate has been specified
+	if (Feed!=-1)
+	{
+		straightProbeSettings.SetFeedRateOverride(gb.ConvertSpeedFromMm(Feed, false));
 	}
 
 	gb.SetState(GCodeState::straightProbe0);

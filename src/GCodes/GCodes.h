@@ -406,6 +406,12 @@ private:
 
 	bool DoStraightMove(GCodeBuffer& gb, bool isCoordinated) THROWS(GCodeException) SPEED_CRITICAL;	// Execute a straight move
 	bool DoArcMove(GCodeBuffer& gb, bool clockwise) THROWS(GCodeException);							// Execute an arc move
+	bool GCodes::DoStraightMoveXYZ(GCodeBuffer& gb,bool isCoordinated,float X_t,float Y_t,float Z_t, , float Feed) THROWS(GCodeException) SPEED_CRITICAL;	// Execute a straight move with explicit parameters
+	bool GCodes::DoExtrusionOnly(GCodeBuffer& gb,
+                                     float E_val,
+                                     float feed_mm_s,
+                                     bool drivesRelative,
+                                     bool volumetricExtrusion) THROWS(GCodeException) SPEED_CRITICAL; // Execute an extrusion-only move with explicit parameters
 	void FinaliseMove(GCodeBuffer& gb, MovementState& ms) noexcept;									// Adjust the move parameters to account for segmentation and/or part of the move having been done already
 	bool CheckEnoughAxesHomed(AxesBitmap axesToMove) noexcept;										// Check that enough axes have been homed
 	bool TravelToStartPoint(GCodeBuffer& gb) noexcept;												// Set up a move to travel to the resume point
@@ -415,11 +421,13 @@ private:
 	GCodeResult SetOrReportOffsets(GCodeBuffer& gb, const StringRef& reply, int code) THROWS(GCodeException);			// Deal with a G10/M568
 	GCodeResult SetPositions(GCodeBuffer& gb, const StringRef& reply) THROWS(GCodeException);							// Deal with a G92
 	GCodeResult StraightProbe(GCodeBuffer& gb, const StringRef& reply) THROWS(GCodeException);							// Deal with a G38.x
+	GCodeResult GCodes::StraightProbexyze(GCodeBuffer& gb, const StringRef& reply,int8_t cmd_type float X_t=SILLY_Z_VALUE,float Y_t=SILLY_Z_VALUE,float Z_t=SILLY_Z_VALUE,float E=SILLY_Z_VALUE,float Feed=-1) THROWS(GCodeException);	// do g38.[2-5] with explicit parameters
 	GCodeResult DoDriveMapping(GCodeBuffer& gb, const StringRef& reply) THROWS(GCodeException);							// Deal with a M584
 	GCodeResult ProbeTool(GCodeBuffer& gb, const StringRef& reply) THROWS(GCodeException);								// Deal with a M585
 	GCodeResult FindCenterOfCavity(GCodeBuffer& gb, const StringRef& reply) THROWS(GCodeException);						// Deal with a M675
 	GCodeResult SetDateTime(GCodeBuffer& gb,const StringRef& reply) THROWS(GCodeException);								// Deal with a M905
 	GCodeResult SavePosition(GCodeBuffer& gb,const StringRef& reply) THROWS(GCodeException);							// Deal with G60
+	bool GCodes::HandleG555(float W=-1.0,float P=-1.0,float E=-1.0,float A=-1.0) THROWS(GCodeException);	// Deal with a G555 with explicit parameters
 #if SUPPORT_PHASE_STEPPING
 	GCodeResult ConfigureStepMode(GCodeBuffer& gb, const StringRef& ref) THROWS(GCodeException);						// Deal with M970
 #endif
