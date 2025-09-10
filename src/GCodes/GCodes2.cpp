@@ -217,8 +217,7 @@ bool GCodes::HandleGcode(GCodeBuffer& gb, const StringRef& reply) THROWS(GCodeEx
 # define BREAK_IF_NOT_EXECUTING	if (!executing) { break; }
 #else
 # define BREAK_IF_NOT_EXECUTING	// nothing
-#endif
-		reply.copy("Handling G%d"code );
+#endif		
 		switch (code)
 		{
 		case 0: // Rapid move
@@ -586,7 +585,7 @@ bool GCodes::HandleGcode(GCodeBuffer& gb, const StringRef& reply) THROWS(GCodeEx
 			reprap.InputsUpdated();
 			break;
 		case 555:
-			float W=-1.0,P=-1.0,E=-1.0,A=-1.0;
+		{	float W=-1.0,P=-1.0,E=-1.0,A=-1.0;
 			if (gb.Seen('W'))
 				W=gb.GetFValue();
 			if (gb.Seen('P'))
@@ -596,211 +595,220 @@ bool GCodes::HandleGcode(GCodeBuffer& gb, const StringRef& reply) THROWS(GCodeEx
 			if (gb.Seen('A'))
 				A=gb.GetFValue();
 			reply.printf("G555 W:%.2f P:%.2f E:%.2f A:%.2f",W,P,E,A);
-			HandleG555(W,P,E,A);
+			HandleG555(reply,W,P,E,A);
 			
-			break;
-			case 666:
-				//M400
-				if (collisionChecker.IsValid())
-				{
-					reply.printf("For collision avoidance, axis %c position must be at least %.1fmm higher than axis %c",
-									axisLetters[collisionChecker.GetUpperAxis()], (double)collisionChecker.GetMinSeparation(), axisLetters[collisionChecker.GetLowerAxis()]);
-				}
-				else
-				{
-					reply.copy("Collision avoidance is not active");
-				}
+			break;}
+		case 666:
+		{
+			//M400
+			if (collisionChecker.IsValid())
+			{
+				reply.printf("For collision avoidance, axis %c position must be at least %.1fmm higher than axis %c",
+								axisLetters[collisionChecker.GetUpperAxis()], (double)collisionChecker.GetMinSeparation(), axisLetters[collisionChecker.GetLowerAxis()]);
+			}
+			else
+			{
+				reply.copy("Collision avoidance is not active");
+			}
 
-				reply.printf("begin G666 %.5f" ,reprap.GetMove().GetSimulationTime());
-				float X_t=0.0,Y_t=0.0,Z_t=0.0;
-				float X_c,Y_c,Z_c;
-				float m[MaxAxes];
-				MovementState& ms = GetMovementState(gb);
-				reprap.Getmove().GetCurrentMachinePosition(m,ms.GetNumber());
-				X_c=m[0];
-				Y_c=m[1];
-				Z_c=m[2];
-				if(gb.LatestMachineState().axesRelative)
+			reply.printf("begin G666 %.5f" ,reprap.GetMove().GetSimulationTime());
+			float X_t=0.0,Y_t=0.0,Z_t=0.0;
+			float X_c,Y_c,Z_c;
+			float m[MaxAxes];
+			
+			reprap.GetMove().GetCurrentMachinePosition(m, GetMovementState(gb).GetNumber());
+			X_c=m[0];
+			Y_c=m[1];
+			Z_c=m[2];
+			if(gb.LatestMachineState().axesRelative)
+			{
+				if(gb.Seen('X'))
+					X_t=gb.GetFValue()+X_c;
+				else
+					X_t=X_c;
+				if(gb.Seen('Y'))
+					Y_t=gb.GetFValue()+Y_c;
+				else
+					Y_t=Y_c;
+				if(gb.Seen('Z'))
+					Z_t=gb.GetFValue()+Z_c;
+				else
+					Z_t=Z_c;
+			}
+			else
+			{
+				if(gb.Seen('X'))
+					X_t=gb.GetFValue();
+				else
+					X_t=X_c;
+				if(gb.Seen('Y'))
+					Y_t=gb.GetFValue();
+				else
+					Y_t=Y_c;
+				if(gb.Seen('Z'))
+					Z_t=gb.GetFValue();
+				else
+					Z_t=Z_c;
+			}
+			float d_X=X_t-X_c;
+			float d_Y=Y_t-Y_c;
+			float d_Z=Z_t-Z_c;
+			float distance=sqrt(pow(d_X,2) + pow(d_Y,2) + pow(d_Z,2));
+			float speed=600.0;
+			//M98
+			if (gb.Seen('F'))
+			{
+				speed=gb.GetIValue();								
+				String<MaxFilenameLength> filename;
+				filename.printf("/macros/WRITE_");
+				VariableSet vars;
+				vars.InsertNewParameter("V", ExpressionValue("speed"));
+				vars.InsertNewParameter("X", ExpressionValue((float)speed));
+				
+				DoFileMacro(gb, filename.c_str(), true, 666,vars);
+			}
+			else
+			{
+				VariableSet vars;
+				vars.InsertNewParameter("V", ExpressionValue("speed"));
+				vars.InsertNewParameter("X", ExpressionValue((float)speed));
+				String<MaxFilenameLength> filename;
+				filename.printf("/macros/READ_");
+				// filename=;
+				DoFileMacro(gb, filename.c_str(), true, 666,vars);
+				
+			}
+			//G90
+			gb.LatestMachineState().axesRelative = false;
+			reprap.InputsUpdated();
+
+
+			if (gb.Seen('E'))
+			{
+				float E_val=gb.GetFValue();
+				if (E_val<1.0)
 				{
-					if(gb.Seen('X'))
-						X_t=gb.GetFValue()+X_c;
-					else
-						X_t=X_c;
-					if(gb.Seen('Y'))
-						Y_t=gb.GetFValue()+Y_c;
-					else
-						Y_t=Y_c;
-					if(gb.Seen('Z'))
-						Z_t=gb.GetFValue()+Z_c;
-					else
-						Z_t=Z_c;
+
+					BREAK_IF_NOT_EXECUTING
+					if (GetMovementState(gb).segmentsLeft != 0)						// do this check first to avoid locking movement unnecessarily
+					{
+						return false;
+					}
+					if (!LockMovement(gb))
+					{
+						return false;
+					}
+					try
+					{
+						if (!DoStraightMoveXYZ(gb,true,X_t,Y_t,Z_t,speed,reply))
+						{
+							return false;
+						}
+						
+					} catch (const GCodeException& exc)
+					{
+						platform.GetEndstops().ClearEndstops();					// DoStraightMove may have enabled endstops before quitting, so disable them
+						gb.SetState(GCodeState::abortWhenMovementFinished);		// empty the queue before ending simulation, and force the user position to be restored
+						gb.LatestMachineState().SetError(exc);					// must do this *after* calling SetState
+					}
+					//TODO: G91 then return
+					gb.LatestMachineState().axesRelative = true;   // Axis movements (i.e. X, Y and Z)
+					reprap.InputsUpdated();
+					
+
 				}
 				else
 				{
-					if(gb.Seen('X'))
-						X_t=gb.GetFValue();
+					float E_start = {100 * (distance / (speed / 60))};
+					
+					reply.printf("Target position X:%.2f Y:%.2f Z:%.2f E: %.2f, Speed: %.2f",X_t,Y_t,Z_t,E_start,speed);
+					///G555 W0.6 P0.6 E1 A1
+					HandleG555(reply,0.6,0.6,1.0,1.0);
+					reply.printf("Started G38.5 at time %.5f",reprap.GetMove().GetSimulationTime());
+					if (!LockCurrentMovementSystemAndWaitForStandstill(gb))
+					{
+						return false;
+					}
+					BREAK_IF_NOT_EXECUTING
+					result = StraightProbexyze(gb,reply, X_t,Y_t,Z_t,E_start,speed);
+					//G555 W0.85 P0.85 E1 A1
+					result = HandleG555(reply,0.85,0.85,1.0,1.0);
+					//M400
+					if (collisionChecker.IsValid())
+					{
+						reply.printf("For collision avoidance, axis %c position must be at least %.1fmm higher than axis %c",
+										axisLetters[collisionChecker.GetUpperAxis()], (double)collisionChecker.GetMinSeparation(), axisLetters[collisionChecker.GetLowerAxis()]);
+					}
 					else
-						X_t=X_c;
-					if(gb.Seen('Y'))
-						Y_t=gb.GetFValue();
-					else
-						Y_t=Y_c;
-					if(gb.Seen('Z'))
-						Z_t=gb.GetFValue();
-					else
-						Z_t=Z_c;
-				}
-				float d_X=X_t-X_c;
-				float d_Y=Y_t-Y_c;
-				float d_Z=Z_t-Z_c;
-				float distance=sqrt(pow(d_X,2) + pow(d_Y,2) + pow(d_Z,2));
-				float speed=600.0;
-				//M98
-				if (gb.Seen('F'))
-				{
-					speed=gb.GetIValue();								String<MaxFilenameLength> filename;
-					filename="/macros/WRITE_";
-					VariableSet vars;
-					vars.SetValue("V", "speed");
-					vars.SetValue("X", speed);
-					DoFileMacroWithParameters(gb, filename.c_str(), true, 666,vars);
-				}
-				else
-				{
-					VariableSet vars;
-					vars.SetValue("V", "speed");
-					vars.SetValue("X", speed);
-					String<MaxFilenameLength> filename;
-					filename="/macros/READ_";
-					DoFileMacroWithParameters(gb, filename.c_str(), true, 666,vars);
+					{
+						reply.copy("Collision avoidance is not active");
+					}
+					reply.printf("Finished G38  %.5f" ,reprap.GetMove().GetSimulationTime());
+					gb.DoDwellTime(50);
+					//G1 E{E_val} F2000
+					DoExtrusionOnly(gb,E_val,4000.0,true,true,reply);
+					//G555 W0.4 P0.4 E1 A0
+					result = HandleG555(reply,0.4,0.4,1.0,0.0);
+					//dist_left = sqrt(square(move.axes[0].machinePosition - var.X_t) + square(move.axes[1].machinePosition - var.Y_t) + square(move.axes[2].machinePosition - var.Z_t))
+					float m[MaxAxes];
+					reprap.GetMove().GetCurrentMachinePosition(m,  GetMovementState(gb).GetNumber());
+					float currentX = m[X_AXIS];
+					float currentY = m[Y_AXIS];
+					float currentZ = m[Z_AXIS];
+					float dist_left = sqrt(pow((currentX-X_t),2) + pow((currentY-Y_t),2) + pow((currentZ-Z_t),2));
+					reply.printf("left %.2f mm retracting at time %.5f",dist_left,reprap.GetMove().GetSimulationTime());
+					// E_left = {100 * (var.dist_left / (global.speed / 60))}
+					float E_left = {100 * (dist_left / (speed / 60))};
+					//if (var.dist_left < (global.retract / 1.5))
+					//TODO: read global var
+					float retract=17;
+					if (dist_left < (retract / 1.5))
+					{
+						DoExtrusionOnly(gb,-retract,4000.0,true,true,reply);
+						DoStraightMoveXYZ(gb,true,X_t,Y_t,Z_t,speed,reply);
+					}
+					else{
+						//TODO: both in one function
+						DoExtrusionOnly(gb,-E_left,4000.0,true,true,reply);
+						DoStraightMoveXYZ(gb,true,X_t,Y_t,Z_t,speed,reply);
+					}
+					reply.printf("Finished retracting at time %.5f",reprap.GetMove().GetSimulationTime());	
 					
 				}
-				//G90
-				gb.LatestMachineState().axesRelative = false;
-				reprap.InputsUpdated();
 
 
-				if (gb.Seen('E'))
-				{
-					float E_val=gb.GetFValue();
-					if (E_val<1.0)
+			}
+			else{
+				if (GetMovementState(gb).segmentsLeft != 0)						// do this check first to avoid locking movement unnecessarily
 					{
-
-						BREAK_IF_NOT_EXECUTING
-						if (GetMovementState(gb).segmentsLeft != 0)						// do this check first to avoid locking movement unnecessarily
-						{
-							return false;
-						}
-						if (!LockMovement(gb))
-						{
-							return false;
-						}
-						try
-						{
-							if (!DoStraightMoveXYZ(gb,true,X_t,Y_t,Z_t,speed))
-							{
-								return false;
-							}
-							
-						} catch (const GCodeException& exc)
-						{
-							platform.GetEndstops().ClearEndstops();					// DoStraightMove may have enabled endstops before quitting, so disable them
-							gb.SetState(GCodeState::abortWhenMovementFinished);		// empty the queue before ending simulation, and force the user position to be restored
-							gb.LatestMachineState().SetError(exc);					// must do this *after* calling SetState
-						}
-						//TODO: G91 then return
-						gb.LatestMachineState().axesRelative = true;   // Axis movements (i.e. X, Y and Z)
-						reprap.InputsUpdated();
-						break;
-
+						return false;
 					}
-					else
+					if (!LockMovement(gb))
 					{
-						float E_start = {100 * (distance / (speed / 60))};
-						
-						reply.printf("Target position X:%.2f Y:%.2f Z:%.2f E: %.2f, Speed: %.2f",X_t,Y_t,Z_t,E_start,speed);
-						///G555 W0.6 P0.6 E1 A1
-						HandleG555(0.6,0.6,1.0,1.0);
-						reply.printf("Started G38.5 at time %.5f",reprap.GetMove().GetSimulationTime());
-						if (!LockCurrentMovementSystemAndWaitForStandstill(gb))
+						return false;
+					}
+					try
+					{
+						if (!DoStraightMoveXYZ(gb,true,X_t,Y_t,Z_t,speed,reply))
 						{
 							return false;
 						}
-						BREAK_IF_NOT_EXECUTING
-						result = StraightProbexyze(gb,reply, X_t,Y_t,Z_t,E_start);
-						//G555 W0.85 P0.85 E1 A1
-						result = HandleG555(0.85,0.85,1.0,1.0);
-						//M400
-						if (collisionChecker.IsValid())
-						{
-							reply.printf("For collision avoidance, axis %c position must be at least %.1fmm higher than axis %c",
-											axisLetters[collisionChecker.GetUpperAxis()], (double)collisionChecker.GetMinSeparation(), axisLetters[collisionChecker.GetLowerAxis()]);
-						}
-						else
-						{
-							reply.copy("Collision avoidance is not active");
-						}
-						reply.printf("Finished G38  %.5f" ,reprap.GetMove().GetSimulationTime());
-						gb.DoDwellTime(50);
-						//G1 E{E_val} F2000
-						DoExtrusionOnly(gb,E_val,4000.0,true,true);
-						//G555 W0.4 P0.4 E1 A0
-						result = HandleG555(0.4,0.4,1.0,0.0);
-						//dist_left = sqrt(square(move.axes[0].machinePosition - var.X_t) + square(move.axes[1].machinePosition - var.Y_t) + square(move.axes[2].machinePosition - var.Z_t))
-						float dist_left = sqrt(pow((reprap.GetMove().GetCurrentMachinePosition(0)-X_t),2) + pow((reprap.GetMove().GetCurrentMachinePosition(1)-Y_t),2) + pow((reprap.GetMove().GetCurrentMachinePosition(2)-Z_t),2));
-						reply.printf("left %.2f mm retracting at time %.5f",dist_left,reprap.GetMove().GetSimulationTime());
-						// E_left = {100 * (var.dist_left / (global.speed / 60))}
-						float E_left = {100 * (dist_left / (speed / 60))};
-						//if (var.dist_left < (global.retract / 1.5))
-						//TODO: read global var
-						float retract=17;
-						if (dist_left < (retract / 1.5))
-						{
-							DoExtrusionOnly(gb,-retract,4000.0,true,true);
-							DoStraightMoveXYZ(gb,true,X_t,Y_t,Z_t,speed);
-						}
-						else{
-							//TODO: both in one function
-							DoExtrusionOnly(gb,-E_left,4000.0,true,true);
-							DoStraightMoveXYZ(gb,true,X_t,Y_t,Z_t,speed);
-						}
-						reply.printf("Finished retracting at time %.5f",reprap.GetMove().GetSimulationTime());	
+						
+					} catch (const GCodeException& exc)
+					{
+						platform.GetEndstops().ClearEndstops();					// DoStraightMove may have enabled endstops before quitting, so disable them
+						gb.SetState(GCodeState::abortWhenMovementFinished);		// empty the queue before ending simulation, and force the user position to be restored
+						gb.LatestMachineState().SetError(exc);					// must do this *after* calling SetState
 						
 					}
+					//TODO: G91 then return
+					gb.LatestMachineState().axesRelative = true;   // Axis movements (i.e. X, Y and Z)
+					reprap.InputsUpdated();
+					
 
 
-				}
-				else{
-					if (GetMovementState(gb).segmentsLeft != 0)						// do this check first to avoid locking movement unnecessarily
-						{
-							return false;
-						}
-						if (!LockMovement(gb))
-						{
-							return false;
-						}
-						try
-						{
-							if (!DoStraightMoveXYZ(gb,true,X_t,Y_t,Z_t,speed))
-							{
-								return false;
-							}
-							
-						} catch (const GCodeException& exc)
-						{
-							platform.GetEndstops().ClearEndstops();					// DoStraightMove may have enabled endstops before quitting, so disable them
-							gb.SetState(GCodeState::abortWhenMovementFinished);		// empty the queue before ending simulation, and force the user position to be restored
-							gb.LatestMachineState().SetError(exc);					// must do this *after* calling SetState
-							
-						}
-						//TODO: G91 then return
-						gb.LatestMachineState().axesRelative = true;   // Axis movements (i.e. X, Y and Z)
-						reprap.InputsUpdated();
-						break;
-
-
-				}
-				break;		
+			}
+			break;	}	
 		default:
 #if HAS_SBC_INTERFACE
 			// Send unknown non-binary codes to DSF so potential plugins can interpret them
@@ -824,13 +832,14 @@ static bool IsStatusRequestMCode(int code) noexcept
 {
 	return code == 105 || code == 109 || code == 114 || code == 115 || code == 122 || code == 408 || code == 409;
 }
-bool GCodes::HandleG555(float W=-1.0,float P=-1.0,float E=-1.0,float A=-1.0) THROWS(GCodeException)
+GCodeResult GCodes::HandleG555(const StringRef& reply,float W,float P,float E,float A) THROWS(GCodeException)
 {
+	GCodeResult result = GCodeResult::ok;
 if (W!=-1.0)
 			{
 				float W_val=W;
 				uint32_t fanNum=1;
-				const auto fan = FindFan(fanNum);
+				const auto fan = reprap.GetFansManager().FindFan(fanNum);
 				if (fan.IsNull())
 				{
 					reply.printf("Fan %u not found", (unsigned int)fanNum);
@@ -839,7 +848,7 @@ if (W!=-1.0)
 				fan->ReportPortDetails(reply);
 				if (W_val > 1.0)
 					{
-						W_val = v/255.0;
+						W_val = W_val/255.0;
 					}
 				// const float f=W_val;
 				for (MovementState& ms : moveStates)
@@ -860,7 +869,7 @@ if (W!=-1.0)
 			{
 				float P_val=P;
 				uint32_t fanNum=2;
-				const auto fan = FindFan(fanNum);
+				const auto fan = reprap.GetFansManager().FindFan(fanNum);
 				if (fan.IsNull())
 				{
 					reply.printf("Fan %u not found", (unsigned int)fanNum);
@@ -869,7 +878,7 @@ if (W!=-1.0)
 				fan->ReportPortDetails(reply);
 				if (P_val > 1.0)
 					{
-						P_val = v/255.0;
+						P_val = P_val/255.0;
 					}
 				// const float f=P_val;
 				for (MovementState& ms : moveStates)
@@ -892,7 +901,7 @@ if (W!=-1.0)
 			{
 				float E_val=E;
 				uint32_t fanNum=0;
-				const auto fan = FindFan(fanNum);
+				const auto fan = reprap.GetFansManager().FindFan(fanNum);
 				if (fan.IsNull())
 				{
 					reply.printf("Fan %u not found", (unsigned int)fanNum);
@@ -901,7 +910,7 @@ if (W!=-1.0)
 				fan->ReportPortDetails(reply);
 				if (E_val > 1.0)
 					{
-						E_val = v/255.0;
+						E_val = E_val/255.0;
 					}
 				// const float f=P_val;
 				for (MovementState& ms : moveStates)
@@ -924,7 +933,7 @@ if (W!=-1.0)
 			{
 				float E_val=0.0;
 				uint32_t fanNum=0;
-				const auto fan = FindFan(fanNum);
+				const auto fan = reprap.GetFansManager().FindFan(fanNum);
 				if (fan.IsNull())
 				{
 					reply.printf("Fan %u not found", (unsigned int)fanNum);
@@ -952,7 +961,7 @@ if (W!=-1.0)
 			{
 				float A_val=A;
 				uint32_t fanNum=4;
-				const auto fan = FindFan(fanNum);
+				const auto fan = reprap.GetFansManager().FindFan(fanNum);
 				if (fan.IsNull())
 				{
 					reply.printf("Fan %u not found", (unsigned int)fanNum);
@@ -961,7 +970,7 @@ if (W!=-1.0)
 				fan->ReportPortDetails(reply);
 				if (A_val > 1.0)
 					{
-						A_val = v/255.0;
+						A_val = A_val/255.0;
 					}
 				// const float f=P_val;
 				for (MovementState& ms : moveStates)
@@ -984,7 +993,7 @@ if (W!=-1.0)
 			{
 				float A_val=0.0;
 				uint32_t fanNum=4;
-				const auto fan = FindFan(fanNum);
+				const auto fan = reprap.GetFansManager().FindFan(fanNum);
 				if (fan.IsNull())
 				{
 					reply.printf("Fan %u not found", (unsigned int)fanNum);
@@ -1008,10 +1017,10 @@ if (W!=-1.0)
 				result = reprap.GetFansManager().SetFanValue(fanNum, A_val, reply);
 
 			}
-			return true;
+			return result;
 
 }
-bool GCodes::DoStraightMoveXYZ(GCodeBuffer& gb,bool isCoordinated,float X_t,float Y_t,float Z_t, float Feed) THROWS(GCodeException)
+bool GCodes::DoStraightMoveXYZ(GCodeBuffer& gb,bool isCoordinated,float X_t,float Y_t,float Z_t, float Feed,const StringRef& reply) THROWS(GCodeException)
 {
 MovementState& ms = GetMovementState(gb);
 
@@ -1174,7 +1183,7 @@ bool GCodes::DoExtrusionOnly(GCodeBuffer& gb,
                                      float E_Val,
                                      float feed_mm_s,
                                      bool drivesRelative,
-                                     bool volumetricExtrusion) THROWS(GCodeException)
+                                     bool volumetricExtrusion,const StringRef& reply) THROWS(GCodeException)
 {
     // Ensure we can enqueue safely
     if (!LockCurrentMovementSystemAndWaitForStandstill(gb)) {

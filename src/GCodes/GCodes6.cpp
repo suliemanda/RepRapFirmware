@@ -708,7 +708,7 @@ GCodeResult GCodes::StraightProbe(GCodeBuffer& gb, const StringRef& reply) THROW
 	return GCodeResult::ok;
 }
 // do g38.[2-5] with explicit parameters
-GCodeResult GCodes::StraightProbexyze(GCodeBuffer& gb, const StringRef& reply,int8_t cmd_type float X_t=SILLY_Z_VALUE,float Y_t=SILLY_Z_VALUE,float Z_t=SILLY_Z_VALUE,float E=SILLY_Z_VALUE,float Feed=-1) THROWS(GCodeException)
+GCodeResult GCodes::StraightProbexyze(GCodeBuffer& gb, const StringRef& reply,int8_t cmd_type, float X_t,float Y_t,float Z_t,float E,float Feed) THROWS(GCodeException)
 {
 	const int8_t fraction = cmd_type;
 	if (fraction < 2 || fraction > 5)
@@ -760,7 +760,7 @@ GCodeResult GCodes::StraightProbexyze(GCodeBuffer& gb, const StringRef& reply,in
 	for (size_t axis = 0; axis < 3; axis++)
 	{
 		const char c = axisLetters[axis];
-		if (axis == 0 && X_t != SILLY_Z_VALUE) || (axis == 1 && Y_t != SILLY_Z_VALUE) || (axis == 2 && Z_t != SILLY_Z_VALUE)
+		if ((axis == 0 && X_t != SILLY_Z_VALUE) || (axis == 1 && Y_t != SILLY_Z_VALUE) || (axis == 2 && Z_t != SILLY_Z_VALUE))
 			seen = true;
 #if SUPPORT_ASYNC_MOVES
 		axisLettersSeen.SetBit(ParameterLetterToBitNumber(c));
@@ -851,7 +851,7 @@ GCodeResult GCodes::StraightProbexyze(GCodeBuffer& gb, const StringRef& reply,in
 	// Check if feed rate has been specified
 	if (Feed!=-1)
 	{
-		straightProbeSettings.SetFeedRateOverride(gb.ConvertSpeedFromMm(Feed, false));
+		straightProbeSettings.SetFeedRateOverride(ConvertSpeedFromMm(Feed, false));
 	}
 
 	gb.SetState(GCodeState::straightProbe0);
