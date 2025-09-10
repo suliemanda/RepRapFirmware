@@ -168,6 +168,7 @@ bool GCodes::HandleGcode(GCodeBuffer& gb, const StringRef& reply) THROWS(GCodeEx
 	}
 
 	const int code = gb.GetCommandNumber();
+	reply.printf("executing G %d",code);
 	if (code != 1 && code != 90 && code != 91 && gb.LatestMachineState().waitingForAcknowledgement)		// when doing manual probing we have to allow G91 and G1 commands. For consistency allow G90 too.
 	{
 		HandleResult(gb, GCodeResult::waitingForAckSoIgnored, reply, nullptr);
