@@ -218,6 +218,7 @@ bool GCodes::HandleGcode(GCodeBuffer& gb, const StringRef& reply) THROWS(GCodeEx
 #else
 # define BREAK_IF_NOT_EXECUTING	// nothing
 #endif
+		reply.copy("Handling G%d"code );
 		switch (code)
 		{
 		case 0: // Rapid move
