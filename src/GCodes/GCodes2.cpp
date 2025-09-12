@@ -701,7 +701,7 @@ bool GCodes::HandleGcode(GCodeBuffer& gb, const StringRef& reply) THROWS(GCodeEx
 					}
 					try
 					{
-						if (!DoStraightMoveXYZ(gb,true,X_t,Y_t,Z_t,speed,reply))
+						if (!DoStraightMoveXYZE(gb,true,X_t,Y_t,Z_t,0.0,speed,reply))
 						{
 							return false;
 						}
@@ -762,16 +762,51 @@ bool GCodes::HandleGcode(GCodeBuffer& gb, const StringRef& reply) THROWS(GCodeEx
 					float E_left = {100 * (dist_left / (speed / 60))};
 					//if (var.dist_left < (global.retract / 1.5))
 					//TODO: read global var
-					float retract=17;
+					float retract;
+					String<MaxVariableNameLength> id;
+					id.printf("global.retract");
+					auto vars = reprap.GetGlobalVariablesForReading();
+					ExpressionValue rslt;
+					bool applyLengthOperator = false;
+					bool applyExists = false;
+					const char *_ecv_array _ecv_null pos = strchr(id, '^');
+					const Variable *_ecv_null const var = vars->Lookup(id, pos - id, false);
+					if (var != nullptr)
+					{
+						ExpressionValue val = var->GetValue();
+						if (val.GetType() == TypeCode::Float)
+						{
+							retract=val.fVal;
+						}
+						else if (val.GetType() == TypeCode::Uint32)
+						{
+							retract=(float)val.uVal;
+
+						}
+						else if(val.GetType() == TypeCode::Int32){
+							retract=(float)val.iVal;
+						}
+						else{
+							retract=17.0;
+							reply.printf("global.retract is not a number, using default %.2f",retract);
+						}
+					}
+
+					// GetVariableValue(rslt, vars.Ptr(), id.c_str(), context, false, applyLengthOperator, applyExists);
+					else{
+						retract=17.0;
+						reply.printf("global.retract not found, using default %.2f",retract);
+					}
+					
+					
+
 					if (dist_left < (retract / 1.5))
 					{
 						DoExtrusionOnly(gb,-retract,4000.0,true,true,reply);
-						DoStraightMoveXYZ(gb,true,X_t,Y_t,Z_t,speed,reply);
+						DoStraightMoveXYZE(gb,true,X_t,Y_t,Z_t,0.0,speed,reply);
 					}
 					else{
-						//TODO: both in one function
-						DoExtrusionOnly(gb,-E_left,4000.0,true,true,reply);
-						DoStraightMoveXYZ(gb,true,X_t,Y_t,Z_t,speed,reply);
+						DoStraightMoveXYZE(gb,true,X_t,Y_t,Z_t,-retract,speed,reply);
 					}
 					reply.printf("Finished retracting at time %.5f",reprap.GetMove().GetSimulationTime());	
 					
@@ -790,7 +825,7 @@ bool GCodes::HandleGcode(GCodeBuffer& gb, const StringRef& reply) THROWS(GCodeEx
 					}
 					try
 					{
-						if (!DoStraightMoveXYZ(gb,true,X_t,Y_t,Z_t,speed,reply))
+						if (!DoStraightMoveXYZE(gb,true,X_t,Y_t,Z_t,0.0,speed,reply))
 						{
 							return false;
 						}
@@ -1021,7 +1056,7 @@ if (W!=-1.0)
 			return result;
 
 }
-bool GCodes::DoStraightMoveXYZ(GCodeBuffer& gb,bool isCoordinated,float X_t,float Y_t,float Z_t, float Feed,const StringRef& reply) THROWS(GCodeException)
+bool GCodes::DoStraightMoveXYZE(GCodeBuffer& gb,bool isCoordinated,float X_t,float Y_t,float Z_t,float E_t, float Feed,const StringRef& reply) THROWS(GCodeException)
 {
 MovementState& ms = GetMovementState(gb);
 
@@ -1115,70 +1150,295 @@ MovementState& ms = GetMovementState(gb);
 
     AxesBitmap axesToLimit = axesVirtuallyHomed & realAxesMoving;
     if (doingManualBedProbe) { axesToLimit.ClearBit(Z_AXIS); }
+	for (size_t drive = numTotalAxes; drive < MaxAxesPlusExtruders; drive++)
+	{
+		ms.coords[drive] = 0.0;
+	}
+	ms.hasPositiveExtrusion = false;
+	ms.moveStartVirtualExtruderPosition = ms.latestVirtualExtruderPosition;	// save this before we update it
+	//LoadExtrusionFromGCode
+	if(E_t!=0)
+	{
+		// Check that we have a tool to extrude with
+		const Tool *_ecv_null const tool = ms.currentTool;
+		if (tool == nullptr)
+		{
+			displayNoToolWarning = true;
+			return;
+		}
 
-    const Kinematics& kin = reprap.GetMove().GetKinematics();
-    const LimitPositionResult lp =
-        kin.LimitPosition(ms.coords, ms.initialCoords, numVisibleAxes, axesToLimit, ms.isCoordinated, limitAxes);
+		ExtrudersBitmap extrudersMoving;
+#if SUPPORT_ASYNC_MOVES && !PREALLOCATE_TOOL_AXES
+		AxesBitmap logicalDrivesMoving;
+#endif
+		float cookedTotalExtrusion = 0.0;
+		const size_t eMoveCount = tool->DriveCount();
+		if (eMoveCount != 0)
+		{
+			// Set the drive values for this tool
+			// size_t mc = eMoveCount;
+				// There may be multiple extruders present but only one value has been specified, so use mixing
+				const float moveArg = gb.ConvertDistance(E_t);
+				float requestedExtrusionAmount;
+				if (gb.LatestMachineState().drivesRelative)
+				{
+					requestedExtrusionAmount = moveArg;
+					ms.latestVirtualExtruderPosition += moveArg;
+				}
+				else
+				{
+					requestedExtrusionAmount = moveArg - ms.latestVirtualExtruderPosition;
+					ms.latestVirtualExtruderPosition = moveArg;
+				}
 
-    switch (lp) {
-    case LimitPositionResult::adjusted:
-    case LimitPositionResult::adjustedAndIntermediateUnreachable:
-        if (machineType != MachineType::fff) {
-            UnlockAll(gb);
-            gb.ThrowGCodeException("target position outside machine limits");
-        }
-        ToolOffsetInverseTransform(ms);
-        if (lp == LimitPositionResult::adjusted) {
-            break;  // keep coordinated
-        }
-        // fallthrough
-    case LimitPositionResult::intermediateUnreachable:
-        if (ms.isCoordinated
-            && (machineType == MachineType::fff && !ms.hasPositiveExtrusion
-               ))
-        {
-            const LimitPositionResult lp2 =
-                kin.LimitPosition(ms.coords, ms.initialCoords, numVisibleAxes, axesToLimit, /*coordinated*/ false, limitAxes);
-            if (lp2 == LimitPositionResult::ok) {
-                ms.isCoordinated = false;   // uncoordinated fallback
-                break;
-            }
-        }
-        UnlockAll(gb);
-        gb.ThrowGCodeException("target position not reachable from current position");
-        // no break
-    case LimitPositionResult::ok:
-    default:
-        break;
-    }
-    const SegmentationType st = kin.GetSegmentationType();
-    float moveLengthSq =
-        fsquare(ms.currentUserPosition[X_AXIS] - initialUserPosition[X_AXIS]) +
-        fsquare(ms.currentUserPosition[Y_AXIS] - initialUserPosition[Y_AXIS]);
-    if (st.useZSegmentation) {
-        moveLengthSq += fsquare(ms.currentUserPosition[Z_AXIS] - initialUserPosition[Z_AXIS]);
-    }
-    const float moveLength = fastSqrtf(moveLengthSq);
-    const float moveTime   = moveLength / (ms.feedRate * StepClockRate);
+				if (requestedExtrusionAmount > 0.0)
+				{
+					ms.hasPositiveExtrusion = true;
+				}
 
-    if (st.useSegmentation && simulationMode != SimulationMode::normal &&
-        (ms.hasPositiveExtrusion || ms.isCoordinated || st.useG0Segmentation))
-    {
-        ms.totalSegments = (unsigned)max<long>(1, lrintf(min<float>(
-            moveLength * kin.GetReciprocalMinSegmentLength(),
-            moveTime   * kin.GetSegmentsPerSecond()
-        )));
-    } else {
-        ms.totalSegments = 1;
-    }
-    ms.totalSegments = max<unsigned>(ms.totalSegments, (unsigned)(moveTime * (1.0f/(float)MaxSegmentTime)));
-    ms.doingArcMove = false;
-    ms.linearAxesMentioned     = axesMentioned.Intersects(reprap.GetMove().GetLinearAxes());
-    ms.rotationalAxesMentioned = axesMentioned.Intersects(reprap.GetMove().GetRotationalAxes());
+				// rawExtruderTotal is used to calculate print progress, so it must be based on the requested extrusion from the slicer
+				// before accounting for mixing, extrusion factor etc.
+				// We used to have 'isPrintingMove &&' in the condition too, but this excluded wipe-while-retracting moves, so it gave wrong results for % print complete.
+				// We still exclude extrusion during tool changing and other macros, because that is extrusion not known to the slicer.
+				if (ms.moveType == 0 && !gb.IsDoingFileMacro())
+				{
+					rawExtruderTotal += requestedExtrusionAmount;
+				}
 
-    FinaliseMove(gb, ms);
-    UnlockAll(gb);
-    return true;
+				float totalMix = 0.0;
+				for (size_t eDrive = 0; eDrive < eMoveCount; eDrive++)
+				{
+					const float thisMix = tool->GetMix()[eDrive];
+					if (thisMix != 0.0)
+					{
+						totalMix += thisMix;
+						const int extruder = tool->GetDrive(eDrive);
+						float extrusionAmount = requestedExtrusionAmount * thisMix;
+						if (gb.LatestMachineState().volumetricExtrusion)
+						{
+							extrusionAmount *= volumetricExtrusionFactors[extruder];
+						}
+						if (eDrive == 0 && ms.moveType == 0 && !gb.IsDoingFileMacro())
+						{
+							rawExtruderTotalByDrive[extruder] += extrusionAmount;
+						}
+
+						const float cookedExtrusionAmount = (ms.applyM220M221)
+															? extrusionAmount * extrusionFactors[extruder]
+															: extrusionAmount;
+						ms.coords[ExtruderToLogicalDrive(extruder)] = cookedExtrusionAmount;
+						cookedTotalExtrusion += cookedExtrusionAmount;
+						extrudersMoving.SetBit(extruder);
+#if SUPPORT_ASYNC_MOVES && !PREALLOCATE_TOOL_AXES
+						logicalDrivesMoving.SetBit(ExtruderToLogicalDrive(extruder));
+#endif
+					}
+				}
+				if (!axesMoving && ms.usingStandardFeedrate)
+				{
+					// For E3D: If the total mix ratio is greater than 1.0 then we should scale the feed rate accordingly, e.g. for dual serial extruder drives
+					ms.feedRate *= totalMix;
+				}
+			
+		}
+
+#if SUPPORT_ASYNC_MOVES && !PREALLOCATE_TOOL_AXES
+		AllocateAxes(gb, ms, logicalDrivesMoving, ParameterLettersBitmap());
+#endif
+	}
+	//LoadExtrusionFromGCode end
+
+	const bool isPrintingMove = ms.hasPositiveExtrusion && axesMentioned.IsNonEmpty();
+	if (ms.IsFirstMoveSincePrintingResumed())								// if this is the first move after skipping an object
+	{
+		if (isPrintingMove)
+		{
+			if (TravelToStartPoint(gb))										// don't start a printing move from the wrong place
+			{
+				ms.DoneMoveSincePrintingResumed();
+			}
+			return false;
+		}
+		else if (axesMentioned.IsNonEmpty())								// don't count G1 Fxxx as a travel move
+		{
+			ms.DoneMoveSincePrintingResumed();
+		}
+	}
+
+	if (isPrintingMove)
+	{
+		// Update the object coordinates limits. For efficiency, we only update the final coordinate.
+		// Except in the case of a straight line that is only one extrusion width wide, this is sufficient.
+		buildObjects.UpdateObjectCoordinates(ms.currentObjectNumber, ms.currentUserPosition, axesMentioned);
+	}
+	if (axesMentioned.IsEmpty())
+	{
+		ms.totalSegments = 1;												// it's an extruder only move
+	}
+	else
+	{
+#if SUPPORT_COORDINATE_ROTATION
+		if (g68Angle != 0.0 && gb.DoingCoordinateRotation())
+		{
+			float coords[MaxAxes];
+			memcpyf(coords, ms.currentUserPosition, MaxAxes);
+			RotateCoordinates(g68Angle, coords);
+			ToolOffsetTransform(ms, coords, ms.coords, axesMentioned);
+		}
+		else
+#endif
+		{
+			ToolOffsetTransform(ms, axesMentioned);							// apply tool offset, baby stepping, Z hop and axis scaling
+		}
+
+#if SUPPORT_KEEPOUT_ZONES
+		if (keepoutZone.DoesLineIntrude(ms.initialCoords, ms.coords))
+		{
+			gb.ThrowGCodeException("straight move would enter keepout zone");
+		}
+#endif
+
+#if SUPPORT_ASYNC_MOVES
+		if (!collisionChecker.UpdatePositions(ms.coords, axesHomed))
+		{
+			gb.ThrowGCodeException("potential collision detected");
+		}
+#endif
+
+		// Only limit the positions of axes that have been mentioned explicitly.
+		// This avoids at least two problems:
+		// 1. When supporting multiple motion systems, if a M208 axis limit was changed and an axis coordinate was outside that limit,
+		//    but we don't own the axis, then if we move that axis there will be a problem when SaveOwnAxisCoordinates is called
+		//    because the new coordinate won't be saved.
+		// 2. If a linear axis is being limited, but the move is for a rotational axis that is already in the correct position,
+		//    then the code in DDA::InitStandardMove will throw it away because neither linearAxesMoving nor rotationalAxesMoving will be set.
+		//    This was an actual problem on my tool changer.
+		AxesBitmap axesToLimit = axesVirtuallyHomed & realAxesMoving;
+		if (doingManualBedProbe)
+		{
+			axesToLimit.ClearBit(Z_AXIS);									// if doing a manual Z probe, don't limit the Z movement
+		}
+
+		const LimitPositionResult lp = reprap.GetMove().GetKinematics().LimitPosition(ms.coords, ms.initialCoords, numVisibleAxes, axesToLimit, ms.isCoordinated, limitAxes);
+		switch (lp)
+		{
+		case LimitPositionResult::adjusted:
+		case LimitPositionResult::adjustedAndIntermediateUnreachable:
+			if (machineType != MachineType::fff)
+			{
+				gb.ThrowGCodeException("target position outside machine limits");	// it's a laser or CNC so this is a definite error
+			}
+			ToolOffsetInverseTransform(ms);									// make sure the limits are reflected in the user position
+			if (lp == LimitPositionResult::adjusted)
+			{
+				break;														// we can reach the intermediate positions, so nothing more to do
+			}
+			// no break
+
+		case LimitPositionResult::intermediateUnreachable:
+			if (   ms.isCoordinated
+				&& (   (machineType == MachineType::fff && !ms.hasPositiveExtrusion)
+#if SUPPORT_LASER || SUPPORT_IOBITS
+					|| (machineType == MachineType::laser && ms.laserPixelData.numPixels == 0)
+#endif
+				   )
+			   )
+			{
+				// It's a coordinated travel move on a 3D printer or laser cutter, with no extrusion or laser, so see whether an uncoordinated move will work
+				const LimitPositionResult lp2 = reprap.GetMove().GetKinematics().LimitPosition(ms.coords, ms.initialCoords, numVisibleAxes, axesToLimit, false, limitAxes);
+				if (lp2 == LimitPositionResult::ok)
+				{
+					ms.isCoordinated = false;								// change it to an uncoordinated move
+					break;
+				}
+			}
+			gb.ThrowGCodeException("target position not reachable from current position");		// we can't bring the move within limits, so this is a definite error
+			// no break
+
+		case LimitPositionResult::ok:
+		default:
+			break;
+		}
+
+		// If we are emulating Marlin for nanoDLP then we need to set a special end state
+		if (gb.LatestMachineState().compatibility == Compatibility::NanoDLP && !DoingFileMacro())
+		{
+			gb.SetState(GCodeState::waitingForSpecialMoveToComplete);
+		}
+
+		// Flag whether we should use pressure advance, if there is any extrusion in this move.
+		// We assume it is a normal printing move needing pressure advance if there is forward extrusion and XYU... movement (we don't count Z).
+		// The movement code will only apply pressure advance if there is forward extrusion, so we only need to check for XYU... movement here.
+		if (ms.hasPositiveExtrusion)
+		{
+			AxesBitmap axesMentionedExceptZ = axesMentioned;
+			axesMentionedExceptZ.ClearBit(Z_AXIS);
+			ms.usePressureAdvance = axesMentionedExceptZ.IsNonEmpty();
+		}
+
+		// Apply segmentation if necessary
+		// As soon as we set segmentsLeft nonzero, the Move process will assume that the move is ready to take, so this must be the last thing we do.
+		const Kinematics &_ecv_from kin = reprap.GetMove().GetKinematics();
+		const SegmentationType st = kin.GetSegmentationType();
+		float moveLengthSquared = fsquare(ms.currentUserPosition[X_AXIS] - initialUserPosition[X_AXIS]) + fsquare(ms.currentUserPosition[Y_AXIS] - initialUserPosition[Y_AXIS]);
+		if (st.useZSegmentation)
+		{
+			moveLengthSquared += fsquare(ms.currentUserPosition[Z_AXIS] - initialUserPosition[Z_AXIS]);
+		}
+		const float moveLength = fastSqrtf(moveLengthSquared);
+		const float moveTime = moveLength/(ms.feedRate * StepClockRate);		// this is a best-case time, often the move will take longer
+
+#if SUPPORT_LASER
+		if (machineType == MachineType::laser && isCoordinated && ms.laserPixelData.numPixels > 1)
+		{
+			ms.totalSegments = ms.laserPixelData.numPixels;			// we must use one segment per pixel
+		}
+		else
+#endif
+		{
+
+			// To speed up simulation on SCARA printers, we don't apply kinematics segmentation when simulating.
+			if (st.useSegmentation && simulationMode != SimulationMode::normal && (ms.hasPositiveExtrusion || ms.isCoordinated || st.useG0Segmentation))
+			{
+				// This kinematics approximates linear motion by means of segmentation
+				ms.totalSegments = (unsigned int)max<long>(1, lrintf(min<float>(moveLength * kin.GetReciprocalMinSegmentLength(), moveTime * kin.GetSegmentsPerSecond())));
+			}
+			else
+			{
+				ms.totalSegments = 1;
+			}
+
+			// If we are applying mesh compensation, set the segment size to be smaller than the mesh spacing.
+			// Do not use segmentation if the requested tool Z position is higher than the configured taper height
+#if !SUPPORT_ASYNC_MOVES
+			const bool meshCompensationInUse = IsUsingMeshCompensation(ms, gb.AllParameters() & allAxisLetters);
+#endif
+			if (meshCompensationInUse)
+			{
+				const HeightMap& heightMap = reprap.GetMove().AccessHeightMap();
+				const GridDefinition& grid = heightMap.GetGrid();
+				const unsigned int minMeshSegments = heightMap.GetMinimumSegments(
+						ms.currentUserPosition[grid.GetAxisNumber(0)] - initialUserPosition[grid.GetAxisNumber(0)],
+						ms.currentUserPosition[grid.GetAxisNumber(1)] - initialUserPosition[grid.GetAxisNumber(1)]
+				);
+				if (minMeshSegments > ms.totalSegments)
+				{
+					ms.totalSegments = minMeshSegments;
+				}
+			}
+		}
+
+		// The step clock wraps around every ~45 minutes (a bit less on Duet 2) which causes issues if the move will take more than about half this time.
+		// So if the move will take more than about 5 minutes, segment it.
+		ms.totalSegments = max<unsigned int>(ms.totalSegments, (unsigned int)(moveTime * (1.0/(float)MaxSegmentTime)));
+	}
+
+	ms.doingArcMove = false;
+	ms.linearAxesMentioned = axesMentioned.Intersects(reprap.GetMove().GetLinearAxes());
+	ms.rotationalAxesMentioned = axesMentioned.Intersects(reprap.GetMove().GetRotationalAxes());
+	FinaliseMove(gb, ms);
+	UnlockAll(gb);			// allow pause
+	return true;
 }
 bool GCodes::DoExtrusionOnly(GCodeBuffer& gb,
                                      float E_Val,

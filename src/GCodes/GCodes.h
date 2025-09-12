@@ -406,7 +406,7 @@ private:
 
 	bool DoStraightMove(GCodeBuffer& gb, bool isCoordinated) THROWS(GCodeException) SPEED_CRITICAL;	// Execute a straight move
 	bool DoArcMove(GCodeBuffer& gb, bool clockwise) THROWS(GCodeException);							// Execute an arc move
-	bool DoStraightMoveXYZ(GCodeBuffer& gb,bool isCoordinated,float X_t,float Y_t,float Z_t, float Feed,const StringRef& reply) THROWS(GCodeException) SPEED_CRITICAL;	// Execute a straight move with explicit parameters
+	bool DoStraightMoveXYZE(GCodeBuffer& gb,bool isCoordinated,float X_t,float Y_t,float Z_t,float E_t, float Feed,const StringRef& reply) THROWS(GCodeException) SPEED_CRITICAL;	// Execute a straight move with explicit parameters
 	bool DoExtrusionOnly(GCodeBuffer& gb,
                                      float E_val,
                                      float feed_mm_s,
