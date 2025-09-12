@@ -763,8 +763,9 @@ bool GCodes::HandleGcode(GCodeBuffer& gb, const StringRef& reply) THROWS(GCodeEx
 					//if (var.dist_left < (global.retract / 1.5))
 					//TODO: read global var
 					float retract;
-					String<MaxVariableNameLength> id;
-					id.printf("global.retract");
+					const char *_ecv_array id="global.retract";
+					
+					// id.printf();
 					auto vars = reprap.GetGlobalVariablesForReading();
 					ExpressionValue rslt;
 					bool applyLengthOperator = false;
@@ -1067,6 +1068,27 @@ MovementState& ms = GetMovementState(gb);
 	ms.checkEndstops = false;
 	ms.reduceAcceleration = false;
 	ms.usePressureAdvance = false;
+#if SUPPORT_ASYNC_MOVES
+	// We need to check for moving unowned axes right at the start in case we need to fetch axis positions before processing the command
+	ParameterLettersBitmap axisLettersMentioned = gb.AllParameters() & allAxisLetters;
+	const bool meshCompensationInUse = (ms.moveType == 0) && IsUsingMeshCompensation(ms, axisLettersMentioned);
+	if (ms.moveType == 0 || !reprap.GetMove().IsRawMotorMove(ms.moveType))
+	{
+		if (meshCompensationInUse)
+		{
+			axisLettersMentioned.SetBit(ParameterLetterToBitNumber('Z'));		// if we are using mesh compensation then Z will probably be moving
+		}
+		axisLettersMentioned.ClearBits(ms.GetOwnedAxisLetters());
+		if (axisLettersMentioned.IsNonEmpty())
+		{
+			AllocateAxisLetters(gb, ms, axisLettersMentioned);
+		}
+	}
+	else
+	{
+		AllocateLogicalDrivesFromLetters(gb, ms, axisLettersMentioned);
+	}
+#endif
 
 #if SUPPORT_SCANNING_PROBES
 	ms.scanningProbeMove = false;
@@ -1157,6 +1179,7 @@ MovementState& ms = GetMovementState(gb);
 	ms.hasPositiveExtrusion = false;
 	ms.moveStartVirtualExtruderPosition = ms.latestVirtualExtruderPosition;	// save this before we update it
 	//LoadExtrusionFromGCode
+	bool axesMoving=axesMentioned.IsNonEmpty();
 	if(E_t!=0)
 	{
 		// Check that we have a tool to extrude with
@@ -1164,7 +1187,7 @@ MovementState& ms = GetMovementState(gb);
 		if (tool == nullptr)
 		{
 			displayNoToolWarning = true;
-			return;
+			return false;
 		}
 
 		ExtrudersBitmap extrudersMoving;
