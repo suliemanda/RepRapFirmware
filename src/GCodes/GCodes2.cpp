@@ -597,6 +597,7 @@ bool GCodes::HandleGcode(GCodeBuffer& gb, const StringRef& reply) THROWS(GCodeEx
 			if (gb.Seen('A'))
 				A=gb.GetFValue();
 			reply.printf("G555 W:%.2f P:%.2f E:%.2f A:%.2f",W,P,E,A);
+			HandleReply(gb,reply)
 			HandleG555(reply,W,P,E,A);
 			
 			break;}
@@ -845,7 +846,7 @@ bool GCodes::HandleGcode(GCodeBuffer& gb, const StringRef& reply) THROWS(GCodeEx
 
 
 			}
-			HandleReply(gb, result, reply.c_str());
+			// HandleReply(gb, result, reply.c_str());
 
 			break;	}	
 		default:
