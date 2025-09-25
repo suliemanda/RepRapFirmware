@@ -183,7 +183,8 @@ bool GCodes::HandleGcode(GCodeBuffer& gb, const StringRef& reply) THROWS(GCodeEx
 		&& code != 68 && code != 69				  // coordinate rotation
 		&& code != 20 && code != 21				  // change units
 		&& (code < 53 || code > 59)				  // coordinate system
-		&& (code < 90 || code > 94))			  // positioning & feedrate modes
+		&& (code < 90 || code > 94)
+		&& code !=666 && code !=555 )			  // positioning & feedrate modes
 	{
 		HandleReply(gb, result, "");
 		return true;														// we only simulate some gcodes
