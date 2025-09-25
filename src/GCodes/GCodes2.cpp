@@ -597,7 +597,7 @@ bool GCodes::HandleGcode(GCodeBuffer& gb, const StringRef& reply) THROWS(GCodeEx
 			if (gb.Seen('A'))
 				A=gb.GetFValue();
 			reply.printf("G555 W:%.2f P:%.2f E:%.2f A:%.2f",W,P,E,A);
-			HandleReply(gb,reply)
+			HandleReply(gb, result, reply.c_str());
 			HandleG555(reply,W,P,E,A);
 			
 			break;}
@@ -608,13 +608,16 @@ bool GCodes::HandleGcode(GCodeBuffer& gb, const StringRef& reply) THROWS(GCodeEx
 			{
 				reply.printf("For collision avoidance, axis %c position must be at least %.1fmm higher than axis %c",
 								axisLetters[collisionChecker.GetUpperAxis()], (double)collisionChecker.GetMinSeparation(), axisLetters[collisionChecker.GetLowerAxis()]);
+				HandleReply(gb, result, reply.c_str());
 			}
 			else
 			{
 				reply.copy("Collision avoidance is not active");
+				HandleReply(gb, result, reply.c_str());
 			}
 
 			reply.printf("begin G666 %.5f" ,reprap.GetMove().GetSimulationTime());
+			HandleReply(gb, result, reply.c_str());
 			float X_t=0.0,Y_t=0.0,Z_t=0.0;
 			float X_c,Y_c,Z_c;
 			float m[MaxAxes];
@@ -695,16 +698,23 @@ bool GCodes::HandleGcode(GCodeBuffer& gb, const StringRef& reply) THROWS(GCodeEx
 					BREAK_IF_NOT_EXECUTING
 					if (GetMovementState(gb).segmentsLeft != 0)						// do this check first to avoid locking movement unnecessarily
 					{
+						reply.copy("movement unnecessarily");
+						HandleReply(gb, result, reply.c_str());
 						return false;
 					}
 					if (!LockMovement(gb))
 					{
+						reply.copy("!LockMovement(gb)");
+						HandleReply(gb, result, reply.c_str());
 						return false;
 					}
 					try
 					{
 						if (!DoStraightMoveXYZE(gb,true,X_t,Y_t,Z_t,0.0,speed,reply))
 						{
+							reply.copy("Error with DoStraightMoveXYZE");
+							HandleReply(gb, result, reply.c_str());
+							
 							return false;
 						}
 						
@@ -725,11 +735,17 @@ bool GCodes::HandleGcode(GCodeBuffer& gb, const StringRef& reply) THROWS(GCodeEx
 					float E_start = {100 * (distance / (speed / 60))};
 					
 					reply.printf("Target position X:%.2f Y:%.2f Z:%.2f E: %.2f, Speed: %.2f",X_t,Y_t,Z_t,E_start,speed);
+					HandleReply(gb, result, reply.c_str());
 					///G555 W0.6 P0.6 E1 A1
 					HandleG555(reply,0.6,0.6,1.0,1.0);
 					reply.printf("Started G38.5 at time %.5f",reprap.GetMove().GetSimulationTime());
+					HandleReply(gb, result, reply.c_str());
 					if (!LockCurrentMovementSystemAndWaitForStandstill(gb))
 					{
+						reply.copy("Error LockCurrentMovementSystemAndWaitForStandstill");
+						HandleReply(gb, result, reply.c_str());
+
+
 						return false;
 					}
 					BREAK_IF_NOT_EXECUTING
@@ -741,12 +757,16 @@ bool GCodes::HandleGcode(GCodeBuffer& gb, const StringRef& reply) THROWS(GCodeEx
 					{
 						reply.printf("For collision avoidance, axis %c position must be at least %.1fmm higher than axis %c",
 										axisLetters[collisionChecker.GetUpperAxis()], (double)collisionChecker.GetMinSeparation(), axisLetters[collisionChecker.GetLowerAxis()]);
+						HandleReply(gb, result, reply.c_str());
 					}
 					else
 					{
 						reply.copy("Collision avoidance is not active");
+						HandleReply(gb, result, reply.c_str());
+
 					}
 					reply.printf("Finished G38  %.5f" ,reprap.GetMove().GetSimulationTime());
+					HandleReply(gb, result, reply.c_str());
 					gb.DoDwellTime(50);
 					//G1 E{E_val} F2000
 					DoExtrusionOnly(gb,E_val,4000.0,true,true,reply);
@@ -760,6 +780,7 @@ bool GCodes::HandleGcode(GCodeBuffer& gb, const StringRef& reply) THROWS(GCodeEx
 					float currentZ = m[Z_AXIS];
 					float dist_left = sqrt(pow((currentX-X_t),2) + pow((currentY-Y_t),2) + pow((currentZ-Z_t),2));
 					reply.printf("left %.2f mm retracting at time %.5f",dist_left,reprap.GetMove().GetSimulationTime());
+					HandleReply(gb, result, reply.c_str());
 					// E_left = {100 * (var.dist_left / (global.speed / 60))}
 					float E_left = {100 * (dist_left / (speed / 60))};
 					//if (var.dist_left < (global.retract / 1.5))
@@ -792,6 +813,7 @@ bool GCodes::HandleGcode(GCodeBuffer& gb, const StringRef& reply) THROWS(GCodeEx
 						else{
 							retract=17.0;
 							reply.printf("global.retract is not a number, using default %.2f",retract);
+							HandleReply(gb, result, reply.c_str());
 						}
 					}
 
@@ -799,6 +821,7 @@ bool GCodes::HandleGcode(GCodeBuffer& gb, const StringRef& reply) THROWS(GCodeEx
 					else{
 						retract=17.0;
 						reply.printf("global.retract not found, using default %.2f",retract);
+						HandleReply(gb, result, reply.c_str());
 					}
 					
 					
@@ -812,6 +835,7 @@ bool GCodes::HandleGcode(GCodeBuffer& gb, const StringRef& reply) THROWS(GCodeEx
 						DoStraightMoveXYZE(gb,true,X_t,Y_t,Z_t,-retract,speed,reply);
 					}
 					reply.printf("Finished retracting at time %.5f",reprap.GetMove().GetSimulationTime());	
+					HandleReply(gb, result, reply.c_str());
 					
 				}
 
@@ -820,16 +844,24 @@ bool GCodes::HandleGcode(GCodeBuffer& gb, const StringRef& reply) THROWS(GCodeEx
 			else{
 				if (GetMovementState(gb).segmentsLeft != 0)						// do this check first to avoid locking movement unnecessarily
 					{
+						reply.copy("movement unnecessarily2");
+						HandleReply(gb, result, reply.c_str());
+
 						return false;
 					}
 					if (!LockMovement(gb))
 					{
+						reply.copy("!LockMovement(gb)2");
+						HandleReply(gb, result, reply.c_str());
+						
 						return false;
 					}
 					try
 					{
 						if (!DoStraightMoveXYZE(gb,true,X_t,Y_t,Z_t,0.0,speed,reply))
 						{
+							reply.copy("Error in DoStraightMoveXYZE 2");
+							HandleReply(gb, result, reply.c_str());
 							return false;
 						}
 						
@@ -2129,11 +2161,13 @@ bool GCodes::HandleMcode(GCodeBuffer& gb, const StringRef& reply) THROWS(GCodeEx
 						if (gb.LatestMachineState().compatibility == Compatibility::Marlin)
 						{
 							reply.copy("File opened\nFile selected");
+							HandleReply(gb, result, reply.c_str());
 						}
 						else
 						{
 							// Command came from web interface or PanelDue, or not emulating Marlin, so send a nicer response
 							reply.printf("File %s selected for printing", filename.c_str());
+							HandleReply(gb, result, reply.c_str());
 						}
 
 						if (code == 32)
