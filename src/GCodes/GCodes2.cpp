@@ -844,7 +844,7 @@ bool GCodes::HandleGcode(GCodeBuffer& gb, const StringRef& reply) THROWS(GCodeEx
 
 
 			}
-			HandleResult(gb, GCodeResult::ok, reply, nullptr);
+			HandleReply(gb, result, reply.c_str());
 
 			break;	}	
 		default:
