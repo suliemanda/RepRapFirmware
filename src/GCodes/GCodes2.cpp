@@ -838,13 +838,14 @@ bool GCodes::HandleGcode(GCodeBuffer& gb, const StringRef& reply) THROWS(GCodeEx
 						gb.LatestMachineState().SetError(exc);					// must do this *after* calling SetState
 						
 					}
-					//TODO: G91 then return
 					gb.LatestMachineState().axesRelative = true;   // Axis movements (i.e. X, Y and Z)
 					reprap.InputsUpdated();
 					
 
 
 			}
+			HandleResult(gb, GCodeResult::ok, reply, nullptr);
+
 			break;	}	
 		default:
 #if HAS_SBC_INTERFACE
