@@ -596,7 +596,7 @@ bool GCodes::HandleGcode(GCodeBuffer& gb, const StringRef& reply) THROWS(GCodeEx
 				E=gb.GetFValue();
 			if (gb.Seen('A'))
 				A=gb.GetFValue();
-			reply.printf("G555 W:%.2f P:%.2f E:%.2f A:%.2f",W,P,E,A);
+			reply.printf("G555 W:%.2f P:%.2f E:%.2f A:%.2f \n",W,P,E,A);
 			HandleReply(gb, result, reply.c_str());
 			HandleG555(reply,W,P,E,A);
 			
@@ -606,17 +606,17 @@ bool GCodes::HandleGcode(GCodeBuffer& gb, const StringRef& reply) THROWS(GCodeEx
 			//M400
 			if (collisionChecker.IsValid())
 			{
-				reply.printf("For collision avoidance, axis %c position must be at least %.1fmm higher than axis %c",
+				reply.printf("For collision avoidance, axis %c position must be at least %.1fmm higher than axis %c \n",
 								axisLetters[collisionChecker.GetUpperAxis()], (double)collisionChecker.GetMinSeparation(), axisLetters[collisionChecker.GetLowerAxis()]);
 				HandleReply(gb, result, reply.c_str());
 			}
 			else
 			{
-				reply.copy("Collision avoidance is not active");
+				reply.copy("Collision avoidance is not active \n");
 				HandleReply(gb, result, reply.c_str());
 			}
 
-			reply.printf("begin G666 %.5f" ,reprap.GetMove().GetSimulationTime());
+			reply.printf("begin G666 %.5f \n" ,reprap.GetMove().GetSimulationTime());
 			HandleReply(gb, result, reply.c_str());
 			float X_t=0.0,Y_t=0.0,Z_t=0.0;
 			float X_c,Y_c,Z_c;
@@ -672,6 +672,8 @@ bool GCodes::HandleGcode(GCodeBuffer& gb, const StringRef& reply) THROWS(GCodeEx
 				vars.InsertNewParameter("X", ExpressionValue((float)speed));
 				
 				DoFileMacro(gb, filename.c_str(), true, 666,vars);
+				reply.printf("speed %2f \n",speed);
+				HandleReply(gb, result, reply.c_str());
 			}
 			else
 			{
@@ -682,6 +684,10 @@ bool GCodes::HandleGcode(GCodeBuffer& gb, const StringRef& reply) THROWS(GCodeEx
 				filename.printf("/macros/READ_");
 				// filename=;
 				DoFileMacro(gb, filename.c_str(), true, 666,vars);
+				reply.printf("speed %2f \n",speed);
+				HandleReply(gb, result, reply.c_str());
+
+
 				
 			}
 			//G90
@@ -698,13 +704,13 @@ bool GCodes::HandleGcode(GCodeBuffer& gb, const StringRef& reply) THROWS(GCodeEx
 					BREAK_IF_NOT_EXECUTING
 					if (GetMovementState(gb).segmentsLeft != 0)						// do this check first to avoid locking movement unnecessarily
 					{
-						reply.copy("movement unnecessarily");
+						reply.copy("movement unnecessarily\n");
 						HandleReply(gb, result, reply.c_str());
 						return false;
 					}
 					if (!LockMovement(gb))
 					{
-						reply.copy("!LockMovement(gb)");
+						reply.copy("!LockMovement(gb)\n");
 						HandleReply(gb, result, reply.c_str());
 						return false;
 					}
@@ -712,7 +718,7 @@ bool GCodes::HandleGcode(GCodeBuffer& gb, const StringRef& reply) THROWS(GCodeEx
 					{
 						if (!DoStraightMoveXYZE(gb,true,X_t,Y_t,Z_t,0.0,speed,reply))
 						{
-							reply.copy("Error with DoStraightMoveXYZE");
+							reply.copy("Error with DoStraightMoveXYZE\n");
 							HandleReply(gb, result, reply.c_str());
 							
 							return false;
@@ -734,15 +740,15 @@ bool GCodes::HandleGcode(GCodeBuffer& gb, const StringRef& reply) THROWS(GCodeEx
 				{
 					float E_start = {100 * (distance / (speed / 60))};
 					
-					reply.printf("Target position X:%.2f Y:%.2f Z:%.2f E: %.2f, Speed: %.2f",X_t,Y_t,Z_t,E_start,speed);
+					reply.printf("Target position X:%.2f Y:%.2f Z:%.2f E: %.2f, Speed: %.2f \n",X_t,Y_t,Z_t,E_start,speed);
 					HandleReply(gb, result, reply.c_str());
 					///G555 W0.6 P0.6 E1 A1
 					HandleG555(reply,0.6,0.6,1.0,1.0);
-					reply.printf("Started G38.5 at time %.5f",reprap.GetMove().GetSimulationTime());
+					reply.printf("Started G38.5 at time %.5f \n",reprap.GetMove().GetSimulationTime());
 					HandleReply(gb, result, reply.c_str());
 					if (!LockCurrentMovementSystemAndWaitForStandstill(gb))
 					{
-						reply.copy("Error LockCurrentMovementSystemAndWaitForStandstill");
+						reply.copy("Error LockCurrentMovementSystemAndWaitForStandstill \n");
 						HandleReply(gb, result, reply.c_str());
 
 
@@ -755,17 +761,17 @@ bool GCodes::HandleGcode(GCodeBuffer& gb, const StringRef& reply) THROWS(GCodeEx
 					//M400
 					if (collisionChecker.IsValid())
 					{
-						reply.printf("For collision avoidance, axis %c position must be at least %.1fmm higher than axis %c",
+						reply.printf("For collision avoidance, axis %c position must be at least %.1fmm higher than axis %c \n",
 										axisLetters[collisionChecker.GetUpperAxis()], (double)collisionChecker.GetMinSeparation(), axisLetters[collisionChecker.GetLowerAxis()]);
 						HandleReply(gb, result, reply.c_str());
 					}
 					else
 					{
-						reply.copy("Collision avoidance is not active");
+						reply.copy("Collision avoidance is not active \n");
 						HandleReply(gb, result, reply.c_str());
 
 					}
-					reply.printf("Finished G38  %.5f" ,reprap.GetMove().GetSimulationTime());
+					reply.printf("Finished G38  %.5f \n" ,reprap.GetMove().GetSimulationTime());
 					HandleReply(gb, result, reply.c_str());
 					gb.DoDwellTime(50);
 					//G1 E{E_val} F2000
@@ -779,14 +785,14 @@ bool GCodes::HandleGcode(GCodeBuffer& gb, const StringRef& reply) THROWS(GCodeEx
 					float currentY = m[Y_AXIS];
 					float currentZ = m[Z_AXIS];
 					float dist_left = sqrt(pow((currentX-X_t),2) + pow((currentY-Y_t),2) + pow((currentZ-Z_t),2));
-					reply.printf("left %.2f mm retracting at time %.5f",dist_left,reprap.GetMove().GetSimulationTime());
+					reply.printf("left %.2f mm retracting at time %.5f \n",dist_left,reprap.GetMove().GetSimulationTime());
 					HandleReply(gb, result, reply.c_str());
 					// E_left = {100 * (var.dist_left / (global.speed / 60))}
 					float E_left = {100 * (dist_left / (speed / 60))};
 					//if (var.dist_left < (global.retract / 1.5))
 					//TODO: read global var
 					float retract;
-					const char *_ecv_array id="global.retract";
+					const char *_ecv_array id="retract";
 					
 					// id.printf();
 					auto vars = reprap.GetGlobalVariablesForReading();
@@ -812,7 +818,7 @@ bool GCodes::HandleGcode(GCodeBuffer& gb, const StringRef& reply) THROWS(GCodeEx
 						}
 						else{
 							retract=17.0;
-							reply.printf("global.retract is not a number, using default %.2f",retract);
+							reply.printf("retract: wrong variable type, using default %.2f \n",retract);
 							HandleReply(gb, result, reply.c_str());
 						}
 					}
@@ -820,7 +826,7 @@ bool GCodes::HandleGcode(GCodeBuffer& gb, const StringRef& reply) THROWS(GCodeEx
 					// GetVariableValue(rslt, vars.Ptr(), id.c_str(), context, false, applyLengthOperator, applyExists);
 					else{
 						retract=17.0;
-						reply.printf("global.retract not found, using default %.2f",retract);
+						reply.printf("retract not found, using default %.2f \n",retract);
 						HandleReply(gb, result, reply.c_str());
 					}
 					
@@ -834,7 +840,7 @@ bool GCodes::HandleGcode(GCodeBuffer& gb, const StringRef& reply) THROWS(GCodeEx
 					else{
 						DoStraightMoveXYZE(gb,true,X_t,Y_t,Z_t,-retract,speed,reply);
 					}
-					reply.printf("Finished retracting at time %.5f",reprap.GetMove().GetSimulationTime());	
+					reply.printf("Finished retracting at time %.5f \n",reprap.GetMove().GetSimulationTime());	
 					HandleReply(gb, result, reply.c_str());
 					
 				}
@@ -844,14 +850,14 @@ bool GCodes::HandleGcode(GCodeBuffer& gb, const StringRef& reply) THROWS(GCodeEx
 			else{
 				if (GetMovementState(gb).segmentsLeft != 0)						// do this check first to avoid locking movement unnecessarily
 					{
-						reply.copy("movement unnecessarily2");
+						reply.copy("movement unnecessarily2 \n");
 						HandleReply(gb, result, reply.c_str());
 
 						return false;
 					}
 					if (!LockMovement(gb))
 					{
-						reply.copy("!LockMovement(gb)2");
+						reply.copy("!LockMovement(gb)2 \n");
 						HandleReply(gb, result, reply.c_str());
 						
 						return false;
@@ -860,7 +866,7 @@ bool GCodes::HandleGcode(GCodeBuffer& gb, const StringRef& reply) THROWS(GCodeEx
 					{
 						if (!DoStraightMoveXYZE(gb,true,X_t,Y_t,Z_t,0.0,speed,reply))
 						{
-							reply.copy("Error in DoStraightMoveXYZE 2");
+							reply.copy("Error in DoStraightMoveXYZE 2 \n");
 							HandleReply(gb, result, reply.c_str());
 							return false;
 						}
@@ -914,7 +920,7 @@ if (W!=-1.0)
 				const auto fan = reprap.GetFansManager().FindFan(fanNum);
 				if (fan.IsNull())
 				{
-					reply.printf("Fan %u not found", (unsigned int)fanNum);
+					reply.printf("Fan %u not found \n", (unsigned int)fanNum);
 					return GCodeResult::error;
 				}
 				fan->ReportPortDetails(reply);
@@ -944,7 +950,7 @@ if (W!=-1.0)
 				const auto fan = reprap.GetFansManager().FindFan(fanNum);
 				if (fan.IsNull())
 				{
-					reply.printf("Fan %u not found", (unsigned int)fanNum);
+					reply.printf("Fan %u not found \n", (unsigned int)fanNum);
 					return GCodeResult::error;
 				}
 				fan->ReportPortDetails(reply);
@@ -976,7 +982,7 @@ if (W!=-1.0)
 				const auto fan = reprap.GetFansManager().FindFan(fanNum);
 				if (fan.IsNull())
 				{
-					reply.printf("Fan %u not found", (unsigned int)fanNum);
+					reply.printf("Fan %u not found \n", (unsigned int)fanNum);
 					return GCodeResult::error;
 				}
 				fan->ReportPortDetails(reply);
@@ -1008,7 +1014,7 @@ if (W!=-1.0)
 				const auto fan = reprap.GetFansManager().FindFan(fanNum);
 				if (fan.IsNull())
 				{
-					reply.printf("Fan %u not found", (unsigned int)fanNum);
+					reply.printf("Fan %u not found \n", (unsigned int)fanNum);
 					return GCodeResult::error;
 				}
 				fan->ReportPortDetails(reply);
@@ -1036,7 +1042,7 @@ if (W!=-1.0)
 				const auto fan = reprap.GetFansManager().FindFan(fanNum);
 				if (fan.IsNull())
 				{
-					reply.printf("Fan %u not found", (unsigned int)fanNum);
+					reply.printf("Fan %u not found \n", (unsigned int)fanNum);
 					return GCodeResult::error;
 				}
 				fan->ReportPortDetails(reply);
@@ -1068,7 +1074,7 @@ if (W!=-1.0)
 				const auto fan = reprap.GetFansManager().FindFan(fanNum);
 				if (fan.IsNull())
 				{
-					reply.printf("Fan %u not found", (unsigned int)fanNum);
+					reply.printf("Fan %u not found \n", (unsigned int)fanNum);
 					return GCodeResult::error;
 				}
 				fan->ReportPortDetails(reply);
