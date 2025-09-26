@@ -1896,7 +1896,7 @@ void GCodes::LoadFeedrateFromGCode(GCodeBuffer& gb, MovementState& ms, bool axes
 		ms.usingStandardFeedrate = false;
 	}
 }
-void GCodes::LoadFeedrateFromVal(float val, MovementState& ms, bool axesMoving) THROWS(GCodeException)
+void GCodes::LoadFeedrateFromVal(GCodeBuffer& gb,float val, MovementState& ms, bool axesMoving) THROWS(GCodeException)
 {
 	// Deal with feed rate, also determine whether M220 and M221 speed and extrusion factors apply to this move
 	if (ms.isCoordinated || machineType == MachineType::fff)

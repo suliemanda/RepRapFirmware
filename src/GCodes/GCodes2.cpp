@@ -1228,7 +1228,7 @@ MovementState& ms = GetMovementState(gb);
 
     // --- Feedrate: your code later uses moveTime = moveLength/(ms.feedRate * StepClockRate)
     //               so ms.feedRate must be mm per step-clock tick.
-	LoadFeedrateFromVal(Feed,ms,true);
+	LoadFeedrateFromVal(gb,Feed,ms,true);
     // if (!(isfinite(Feed)) || Feed <= 0.0f) {
     //     UnlockAll(gb);
     //     gb.ThrowGCodeException("invalid feed rate");
