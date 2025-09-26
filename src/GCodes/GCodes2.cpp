@@ -626,7 +626,8 @@ bool GCodes::HandleGcode(GCodeBuffer& gb, const StringRef& reply) THROWS(GCodeEx
 			X_c=m[0];
 			Y_c=m[1];
 			Z_c=m[2];
-			if(gb.LatestMachineState().axesRelative)
+			bool was_relative=gb.LatestMachineState().axesRelative;
+			if(was_relative)
 			{
 				if(gb.Seen('X'))
 					X_t=gb.GetFValue()+X_c;
@@ -785,8 +786,9 @@ bool GCodes::HandleGcode(GCodeBuffer& gb, const StringRef& reply) THROWS(GCodeEx
 						gb.LatestMachineState().SetError(exc);					// must do this *after* calling SetState
 					}
 					//TODO: G91 then return
+					if(was_relative){
 					gb.LatestMachineState().axesRelative = true;   // Axis movements (i.e. X, Y and Z)
-					reprap.InputsUpdated();
+					reprap.InputsUpdated();}
 					
 
 				}
@@ -810,6 +812,7 @@ bool GCodes::HandleGcode(GCodeBuffer& gb, const StringRef& reply) THROWS(GCodeEx
 					}
 					BREAK_IF_NOT_EXECUTING
 					result = StraightProbexyze(gb,reply, X_t,Y_t,Z_t,E_start,speed);
+					gb.SetState(GCodeState::waitingForSpecialMoveToComplete);
 					//G555 W0.85 P0.85 E1 A1
 					result = HandleG555(reply,0.85,0.85,1.0,1.0);
 					//M400
@@ -839,9 +842,8 @@ bool GCodes::HandleGcode(GCodeBuffer& gb, const StringRef& reply) THROWS(GCodeEx
 					float currentY = m[Y_AXIS];
 					float currentZ = m[Z_AXIS];
 					float dist_left = sqrt(pow((currentX-X_t),2) + pow((currentY-Y_t),2) + pow((currentZ-Z_t),2));
-					reply.printf("left %.2f mm retracting at time %lu \n" ,millis());
+					reply.printf("left %.2f mm retracting at time %lu \n" ,dist_left,millis());
 					HandleReply(gb, result, reply.c_str());
-					// E_left = {100 * (var.dist_left / (global.speed / 60))}
 					float E_left = {100 * (dist_left / (speed / 60))};
 					//if (var.dist_left < (global.retract / 1.5))
 					//TODO: read global var
@@ -889,6 +891,7 @@ bool GCodes::HandleGcode(GCodeBuffer& gb, const StringRef& reply) THROWS(GCodeEx
 					if (dist_left < (retract / 1.5))
 					{
 						DoExtrusionOnly(gb,-retract,4000.0,true,true,reply);
+						gb.SetState(GCodeState::waitingForSpecialMoveToComplete);
 						DoStraightMoveXYZE(gb,true,X_t,Y_t,Z_t,0.0,speed,reply);
 					}
 					else{
@@ -932,8 +935,9 @@ bool GCodes::HandleGcode(GCodeBuffer& gb, const StringRef& reply) THROWS(GCodeEx
 						gb.LatestMachineState().SetError(exc);					// must do this *after* calling SetState
 						
 					}
+					if(was_relative){
 					gb.LatestMachineState().axesRelative = true;   // Axis movements (i.e. X, Y and Z)
-					reprap.InputsUpdated();
+					reprap.InputsUpdated();}
 					
 
 

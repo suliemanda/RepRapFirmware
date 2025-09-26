@@ -13,6 +13,7 @@
         "stdexcept": "cpp",
         "__locale": "cpp",
         "locale": "cpp",
-        "system_error": "cpp"
+        "system_error": "cpp",
+        "functional": "cpp"
     }
 }
