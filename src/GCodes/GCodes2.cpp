@@ -813,7 +813,7 @@ bool GCodes::HandleGcode(GCodeBuffer& gb, const StringRef& reply) THROWS(GCodeEx
 						return false;
 					}
 					BREAK_IF_NOT_EXECUTING
-					result = StraightProbexyze(gb,reply, X_t,Y_t,Z_t,E_start,speed);
+					result = StraightProbexyze(gb,reply,5, X_t,Y_t,Z_t,E_start,speed);
 					HandleResult(gb, result, reply, nullptr);
 					gb.SetState(GCodeState::waitingForSpecialMoveToComplete);
 					//G555 W0.85 P0.85 E1 A1
