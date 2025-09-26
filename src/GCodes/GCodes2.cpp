@@ -626,6 +626,8 @@ bool GCodes::HandleGcode(GCodeBuffer& gb, const StringRef& reply) THROWS(GCodeEx
 			X_c=m[0];
 			Y_c=m[1];
 			Z_c=m[2];
+			reply.printf("initial position X %.2f Y %.2f Z %.2f\n" ,X_c,Y_c,Z_c);
+			HandleReply(gb, result, reply.c_str());
 			bool was_relative=gb.LatestMachineState().axesRelative;
 			if(was_relative)
 			{
@@ -665,7 +667,7 @@ bool GCodes::HandleGcode(GCodeBuffer& gb, const StringRef& reply) THROWS(GCodeEx
 			//M98
 			if (gb.Seen('F'))
 			{
-				speed=gb.GetIValue();								
+				speed=gb.GetFValue();								
 				String<MaxFilenameLength> filename;
 				filename.printf("globals/speed");
 				// VariableSet vars;
@@ -812,9 +814,11 @@ bool GCodes::HandleGcode(GCodeBuffer& gb, const StringRef& reply) THROWS(GCodeEx
 					}
 					BREAK_IF_NOT_EXECUTING
 					result = StraightProbexyze(gb,reply, X_t,Y_t,Z_t,E_start,speed);
+					HandleResult(gb, result, reply, nullptr);
 					gb.SetState(GCodeState::waitingForSpecialMoveToComplete);
 					//G555 W0.85 P0.85 E1 A1
 					result = HandleG555(reply,0.85,0.85,1.0,1.0);
+					HandleResult(gb, result, reply, nullptr);
 					//M400
 					if (collisionChecker.IsValid())
 					{
@@ -835,12 +839,16 @@ bool GCodes::HandleGcode(GCodeBuffer& gb, const StringRef& reply) THROWS(GCodeEx
 					DoExtrusionOnly(gb,E_val,4000.0,true,true,reply);
 					//G555 W0.4 P0.4 E1 A0
 					result = HandleG555(reply,0.4,0.4,1.0,0.0);
+					HandleResult(gb, result, reply, nullptr);
 					//dist_left = sqrt(square(move.axes[0].machinePosition - var.X_t) + square(move.axes[1].machinePosition - var.Y_t) + square(move.axes[2].machinePosition - var.Z_t))
 					float m[MaxAxes];
 					reprap.GetMove().GetCurrentMachinePosition(m,  GetMovementState(gb).GetNumber());
 					float currentX = m[X_AXIS];
 					float currentY = m[Y_AXIS];
 					float currentZ = m[Z_AXIS];
+					reply.printf("Current position X:%.2f Y:%.2f Z:%.2f E: %.2f, Speed: %.2f \n",currentX,currentY,currentZ,E_start,speed);
+					HandleReply(gb, result, reply.c_str());
+
 					float dist_left = sqrt(pow((currentX-X_t),2) + pow((currentY-Y_t),2) + pow((currentZ-Z_t),2));
 					reply.printf("left %.2f mm retracting at time %lu \n" ,dist_left,millis());
 					HandleReply(gb, result, reply.c_str());
@@ -1220,11 +1228,12 @@ MovementState& ms = GetMovementState(gb);
 
     // --- Feedrate: your code later uses moveTime = moveLength/(ms.feedRate * StepClockRate)
     //               so ms.feedRate must be mm per step-clock tick.
-    if (!(isfinite(Feed)) || Feed <= 0.0f) {
-        UnlockAll(gb);
-        gb.ThrowGCodeException("invalid feed rate");
-    }
-    ms.feedRate = Feed / StepClockRate;
+	LoadFeedrateFromVal(Feed,ms,true);
+    // if (!(isfinite(Feed)) || Feed <= 0.0f) {
+    //     UnlockAll(gb);
+    //     gb.ThrowGCodeException("invalid feed rate");
+    // }
+    // ms.feedRate = Feed / StepClockRate;
 
     // --- Determine which real axes move (matches your ms.moveType==0 branch) ---
     AxesBitmap realAxesMoving;

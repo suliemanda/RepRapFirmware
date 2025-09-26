@@ -1896,6 +1896,42 @@ void GCodes::LoadFeedrateFromGCode(GCodeBuffer& gb, MovementState& ms, bool axes
 		ms.usingStandardFeedrate = false;
 	}
 }
+void GCodes::LoadFeedrateFromVal(float val, MovementState& ms, bool axesMoving) THROWS(GCodeException)
+{
+	// Deal with feed rate, also determine whether M220 and M221 speed and extrusion factors apply to this move
+	if (ms.isCoordinated || machineType == MachineType::fff)
+	{
+		ms.applyM220M221 = (ms.moveType == 0 && axesMoving && !gb.LatestMachineState().runningSystemMacro);
+		ms.inverseTimeMode = gb.LatestMachineState().inverseTimeMode;
+		if (ms.inverseTimeMode)
+		{
+			if (!gb.Seen(feedrateLetter))
+			{
+				gb.ThrowGCodeException("Feed rate must be specified with every move when using inverse time mode");
+			}
+			const float feedRate = (StepClockRate * 60)/val;			// get the requested move duration in step clocks
+			ms.feedRate = (ms.applyM220M221)
+							? feedRate/ms.speedFactor
+								: feedRate;
+		}
+		else
+		{
+			
+				gb.LatestMachineState().feedRate = gb.ConvertSpeed(val);						// update requested speed in mm per step clock, not allowing for speed factor
+			
+			ms.feedRate = (ms.applyM220M221)
+							?  gb.LatestMachineState().feedRate * ms.speedFactor
+								: gb.LatestMachineState().feedRate;
+		}
+		ms.usingStandardFeedrate = true;
+	}
+	else
+	{
+		ms.applyM220M221 = false;
+		ms.feedRate = ConvertSpeedFromMmPerMin(MaximumG0FeedRate);			// use maximum feed rate, the M203 parameters will limit it
+		ms.usingStandardFeedrate = false;
+	}
+}
 
 // Set up the extrusion of a move for the Move class
 // 'moveBuffer.moveType', 'moveBuffer.isCoordinated', ms.moveType and ms.feedRate must be set up before calling this

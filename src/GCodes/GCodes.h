@@ -452,6 +452,7 @@ private:
 	bool ProcessWholeLineComment(GCodeBuffer& gb, const StringRef& reply) THROWS(GCodeException);	// Process a whole-line comment
 
 	void LoadFeedrateFromGCode(GCodeBuffer& gb, MovementState& ms, bool axesMoving) THROWS(GCodeException);		// Set up the feed rate of a move
+	void GCodes::LoadFeedrateFromVal(float val, MovementState& ms, bool axesMoving) THROWS(GCodeException);
 	void LoadExtrusionFromGCode(GCodeBuffer& gb, MovementState& ms, bool axesMoving) THROWS(GCodeException);	// Set up the extrusion of a move
 
 	bool Push(GCodeBuffer& gb, bool withinSameFile) noexcept;										// Push feedrate etc on the stack
