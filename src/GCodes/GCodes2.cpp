@@ -616,7 +616,7 @@ bool GCodes::HandleGcode(GCodeBuffer& gb, const StringRef& reply) THROWS(GCodeEx
 				HandleReply(gb, result, reply.c_str());
 			}
 
-			reply.printf("begin G666 %.5f \n" ,reprap.GetMove().GetSimulationTime());
+			reply.printf("begin G666 %lu \n" ,millis());
 			HandleReply(gb, result, reply.c_str());
 			float X_t=0.0,Y_t=0.0,Z_t=0.0;
 			float X_c,Y_c,Z_c;
@@ -670,23 +670,27 @@ bool GCodes::HandleGcode(GCodeBuffer& gb, const StringRef& reply) THROWS(GCodeEx
 				// VariableSet vars;
 				// vars.InsertNewParameter("V", ExpressionValue("speed"));
 				// vars.InsertNewParameter("X", ExpressionValue((float)speed));
-				FileStore *_ecv_null const f = platform.OpenSysFile(filename, OpenMode::write);
+				FileStore *_ecv_null const f = platform.OpenSysFile(filename.c_str(), OpenMode::write);
 				String<StringLength100> write_vars;
-				write_vars.printf("if exists(global.speed)\n	 set global.speed = %.2f\nelse\n	global.speed = %.2f",speed);
+				write_vars.printf("if exists(global.speed)\n	 set global.speed = %.2f\nelse\n	global.speed = %.2f",speed,speed);
 				
-				f.Write(write_vars);
-				f.Close();
+				f->Write(write_vars.c_str());
+				f->Close();
 				WriteLockedPointer<VariableSet> vset = reprap.GetGlobalVariablesForWriting();
 				Variable *_ecv_null const var = vset->Lookup("speed", false);
 				if (var == nullptr)
 				{
-					vset->InsertNewParameter("speed", ExpressionValue((float)speed));
+					ExpressionValue spval=ExpressionValue((float)speed);
+					vset->InsertNew("speed",spval ,0);
+					reply.printf("creating new  global variable (speed) %2f \n",speed);
+					HandleReply(gb, result, reply.c_str());
 					
 				}
 				else 
 				{
 					var->Assign(ExpressionValue((float)speed));
 				}
+				reprap.GlobalUpdated();
 
 
 				// DoFileMacro(gb, filename.c_str(), true, 666,vars);
@@ -695,13 +699,43 @@ bool GCodes::HandleGcode(GCodeBuffer& gb, const StringRef& reply) THROWS(GCodeEx
 			}
 			else
 			{
-				VariableSet vars;
-				vars.InsertNewParameter("V", ExpressionValue("speed"));
-				vars.InsertNewParameter("X", ExpressionValue((float)speed));
-				String<MaxFilenameLength> filename;
-				filename.printf("/macros/READ_");
-				// filename=;
-				DoFileMacro(gb, filename.c_str(), true, 666,vars);
+				// VariableSet vars;
+				// vars.InsertNewParameter("V", ExpressionValue("speed"));
+				// vars.InsertNewParameter("X", ExpressionValue((float)speed));
+				auto vars = reprap.GetGlobalVariablesForReading();
+				Variable * const var = vset->Lookup('speed', false);
+				if (var != nullptr)
+					{
+						ExpressionValue val = var->GetValue();
+						if (val.GetType() == TypeCode::Float)
+						{
+							speed=val.fVal;
+						}
+						else if (val.GetType() == TypeCode::Uint32)
+						{
+							speed=(float)val.uVal;
+
+						}
+						else if(val.GetType() == TypeCode::Int32){
+							speed=(float)val.iVal;
+						}
+						else{
+
+							reply.printf("speed: wrong variable type, using default %.2f \n",speed);
+							HandleReply(gb, result, reply.c_str());
+						}
+					}
+
+					// GetVariableValue(rslt, vars.Ptr(), id.c_str(), context, false, applyLengthOperator, applyExists);
+					else{
+						WriteLockedPointer<VariableSet> wvset = reprap.GetGlobalVariablesForWriting();
+						ExpressionValue spval=ExpressionValue((float)speed);
+						wvset->InsertNew("speed",spval ,0);
+						reprap.GlobalUpdated();
+						reply.printf("speed not found, using default %.2f \n",speed);
+						HandleReply(gb, result, reply.c_str());
+					}
+
 				reply.printf("speed %2f \n",speed);
 				HandleReply(gb, result, reply.c_str());
 
@@ -762,7 +796,7 @@ bool GCodes::HandleGcode(GCodeBuffer& gb, const StringRef& reply) THROWS(GCodeEx
 					HandleReply(gb, result, reply.c_str());
 					///G555 W0.6 P0.6 E1 A1
 					HandleG555(reply,0.6,0.6,1.0,1.0);
-					reply.printf("Started G38.5 at time %.5f \n",reprap.GetMove().GetSimulationTime());
+					reply.printf("Started G38.5 at time %lu \n" ,millis());
 					HandleReply(gb, result, reply.c_str());
 					if (!LockCurrentMovementSystemAndWaitForStandstill(gb))
 					{
@@ -789,7 +823,7 @@ bool GCodes::HandleGcode(GCodeBuffer& gb, const StringRef& reply) THROWS(GCodeEx
 						HandleReply(gb, result, reply.c_str());
 
 					}
-					reply.printf("Finished G38  %.5f \n" ,reprap.GetMove().GetSimulationTime());
+					reply.printf("Finished G38  %lu \n" ,millis());
 					HandleReply(gb, result, reply.c_str());
 					gb.DoDwellTime(50);
 					//G1 E{E_val} F2000
@@ -803,7 +837,7 @@ bool GCodes::HandleGcode(GCodeBuffer& gb, const StringRef& reply) THROWS(GCodeEx
 					float currentY = m[Y_AXIS];
 					float currentZ = m[Z_AXIS];
 					float dist_left = sqrt(pow((currentX-X_t),2) + pow((currentY-Y_t),2) + pow((currentZ-Z_t),2));
-					reply.printf("left %.2f mm retracting at time %.5f \n",dist_left,reprap.GetMove().GetSimulationTime());
+					reply.printf("left %.2f mm retracting at time %lu \n" ,millis());
 					HandleReply(gb, result, reply.c_str());
 					// E_left = {100 * (var.dist_left / (global.speed / 60))}
 					float E_left = {100 * (dist_left / (speed / 60))};
@@ -815,10 +849,10 @@ bool GCodes::HandleGcode(GCodeBuffer& gb, const StringRef& reply) THROWS(GCodeEx
 					// id.printf();
 					auto vars = reprap.GetGlobalVariablesForReading();
 					ExpressionValue rslt;
-					bool applyLengthOperator = false;
-					bool applyExists = false;
-					const char *_ecv_array _ecv_null pos = strchr(id, '^');
-					const Variable *_ecv_null const var = vars->Lookup(id, pos - id, false);
+					// bool applyLengthOperator = false;
+					// bool applyExists = false;
+					// const char *_ecv_array _ecv_null pos = strchr(id, '^');
+					const Variable *_ecv_null const var = vars->Lookup(id, false);
 					if (var != nullptr)
 					{
 						ExpressionValue val = var->GetValue();
@@ -858,7 +892,7 @@ bool GCodes::HandleGcode(GCodeBuffer& gb, const StringRef& reply) THROWS(GCodeEx
 					else{
 						DoStraightMoveXYZE(gb,true,X_t,Y_t,Z_t,-retract,speed,reply);
 					}
-					reply.printf("Finished retracting at time %.5f \n",reprap.GetMove().GetSimulationTime());	
+					reply.printf("Finished retracting at time %lu \n" ,millis());	
 					HandleReply(gb, result, reply.c_str());
 					
 				}
