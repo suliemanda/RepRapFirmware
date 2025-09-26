@@ -672,7 +672,7 @@ bool GCodes::HandleGcode(GCodeBuffer& gb, const StringRef& reply) THROWS(GCodeEx
 				// vars.InsertNewParameter("X", ExpressionValue((float)speed));
 				FileStore *_ecv_null const f = platform.OpenSysFile(filename.c_str(), OpenMode::write);
 				String<StringLength100> write_vars;
-				write_vars.printf("if exists(global.speed)\n	 set global.speed = %.2f\nelse\n	global.speed = %.2f",speed,speed);
+				write_vars.printf("if exists(global.speed)\n	set global.speed = %.2f\nelse\n	global speed = %.2f",speed,speed);
 				
 				f->Write(write_vars.c_str());
 				f->Close();
