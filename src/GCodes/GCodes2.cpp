@@ -666,12 +666,30 @@ bool GCodes::HandleGcode(GCodeBuffer& gb, const StringRef& reply) THROWS(GCodeEx
 			{
 				speed=gb.GetIValue();								
 				String<MaxFilenameLength> filename;
-				filename.printf("/macros/WRITE_");
-				VariableSet vars;
-				vars.InsertNewParameter("V", ExpressionValue("speed"));
-				vars.InsertNewParameter("X", ExpressionValue((float)speed));
+				filename.printf("globals/speed");
+				// VariableSet vars;
+				// vars.InsertNewParameter("V", ExpressionValue("speed"));
+				// vars.InsertNewParameter("X", ExpressionValue((float)speed));
+				FileStore *_ecv_null const f = platform.OpenSysFile(filename, OpenMode::write);
+				String<StringLength100> write_vars;
+				write_vars.printf("if exists(global.speed)\n	 set global.speed = %.2f\nelse\n	global.speed = %.2f",speed);
 				
-				DoFileMacro(gb, filename.c_str(), true, 666,vars);
+				f.Write(write_vars);
+				f.Close();
+				WriteLockedPointer<VariableSet> vset = reprap.GetGlobalVariablesForWriting();
+				Variable *_ecv_null const var = vset->Lookup("speed", false);
+				if (var == nullptr)
+				{
+					vset->InsertNewParameter("speed", ExpressionValue((float)speed));
+					
+				}
+				else 
+				{
+					var->Assign(ExpressionValue((float)speed));
+				}
+
+
+				// DoFileMacro(gb, filename.c_str(), true, 666,vars);
 				reply.printf("speed %2f \n",speed);
 				HandleReply(gb, result, reply.c_str());
 			}
