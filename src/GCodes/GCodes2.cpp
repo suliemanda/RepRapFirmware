@@ -688,7 +688,8 @@ bool GCodes::HandleGcode(GCodeBuffer& gb, const StringRef& reply) THROWS(GCodeEx
 				}
 				else 
 				{
-					var->Assign(ExpressionValue((float)speed));
+					ExpressionValue spval=ExpressionValue((float)speed);
+					var->Assign(spval);
 				}
 				reprap.GlobalUpdated();
 
@@ -702,8 +703,9 @@ bool GCodes::HandleGcode(GCodeBuffer& gb, const StringRef& reply) THROWS(GCodeEx
 				// VariableSet vars;
 				// vars.InsertNewParameter("V", ExpressionValue("speed"));
 				// vars.InsertNewParameter("X", ExpressionValue((float)speed));
-				auto vars = reprap.GetGlobalVariablesForReading();
-				Variable * const var = vset->Lookup('speed', false);
+				ReadLockedPointer<const VariableSet> vars = reprap.GetGlobalVariablesForReading();
+				const Variable *_ecv_null const var = vars->Lookup("speed", strlen("speed"),0);
+
 				if (var != nullptr)
 					{
 						ExpressionValue val = var->GetValue();
@@ -847,12 +849,12 @@ bool GCodes::HandleGcode(GCodeBuffer& gb, const StringRef& reply) THROWS(GCodeEx
 					const char *_ecv_array id="retract";
 					
 					// id.printf();
-					auto vars = reprap.GetGlobalVariablesForReading();
-					ExpressionValue rslt;
+					ReadLockedPointer<const VariableSet> vars = reprap.GetGlobalVariablesForReading();
+					// ExpressionValue rslt;
 					// bool applyLengthOperator = false;
 					// bool applyExists = false;
 					// const char *_ecv_array _ecv_null pos = strchr(id, '^');
-					const Variable *_ecv_null const var = vars->Lookup(id, false);
+					const Variable *_ecv_null const var = vars->Lookup(id, strlen(id),0);
 					if (var != nullptr)
 					{
 						ExpressionValue val = var->GetValue();
