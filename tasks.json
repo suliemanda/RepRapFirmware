@@ -1,0 +1,963 @@
+{
+    "version": "2.0.0",
+    "tasks": [
+      {
+        "label": "build skr2 f4 firmware",
+        "type": "shell",
+        "command": "bash ./testbuild.sh Debug STM32 STM32F4 STM32F4 COMBINED btt skr2_f4",
+        "osx": {
+          "options": {
+            "env": {
+              "PATH": "${env:PATH}"
+            }
+          }
+        },
+        "linux": {
+          "options": {
+            "env": {
+              "PATH": "${env:PATH}"
+            }
+          }
+        },
+        "windows": {
+          "options": {
+            "env": {
+              "PATH": "${env:PATH}"
+            }
+          }
+        },
+        "group": {
+          "kind": "build",
+          "isDefault": true
+        },
+        "problemMatcher": "$gcc"
+      },
+      {
+        "label": "build octopus pro f4 firmware",
+        "type": "shell",
+        "command": "bash ./testbuild.sh Debug STM32 STM32F4 STM32F4 COMBINED btt octopuspro1_0_f4",
+        "osx": {
+          "options": {
+            "env": {
+              "PATH": "${env:PATH}"
+            }
+          }
+        },
+        "linux": {
+          "options": {
+            "env": {
+              "PATH": "${env:PATH}"
+            }
+          }
+        },
+        "windows": {
+          "options": {
+            "env": {
+              "PATH": "${env:PATH}"
+            }
+          }
+        },
+        "group": {
+          "kind": "build",
+          "isDefault": true
+        },
+        "problemMatcher": "$gcc"
+      },      
+      {
+        "label": "build gemini 1.0 f4 firmware",
+        "type": "shell",
+        "command": "bash ./testbuild.sh Debug STM32 STM32F4 STM32F4 COMBINED fly gemini1_0_f4",
+        "osx": {
+          "options": {
+            "env": {
+              "PATH": "${env:PATH}"
+            }
+          }
+        },
+        "linux": {
+          "options": {
+            "env": {
+              "PATH": "${env:PATH}"
+            }
+          }
+        },
+        "windows": {
+          "options": {
+            "env": {
+              "PATH": "${env:PATH}"
+            }
+          }
+        },
+        "group": {
+          "kind": "build",
+          "isDefault": true
+        },
+        "problemMatcher": "$gcc"
+      },
+      {
+        "label": "build super8 f4 firmware",
+        "type": "shell",
+        "command": "bash ./testbuild.sh Debug STM32 STM32F4 STM32F4 COMBINED fly super8_f4",
+        "osx": {
+          "options": {
+            "env": {
+              "PATH": "${env:PATH}"
+            }
+          }
+        },
+        "linux": {
+          "options": {
+            "env": {
+              "PATH": "${env:PATH}"
+            }
+          }
+        },
+        "windows": {
+          "options": {
+            "env": {
+              "PATH": "${env:PATH}"
+            }
+          }
+        },
+        "group": {
+          "kind": "build",
+          "isDefault": true
+        },
+        "problemMatcher": "$gcc"
+      },      {
+        "label": "build super8pro h743 firmware",
+        "type": "shell",
+        "command": "bash ./testbuild.sh Debug STM32 STM32H7 STM32H743 COMBINED fly super8pro_h743",
+        "osx": {
+          "options": {
+            "env": {
+              "PATH": "${env:PATH}"
+            }
+          }
+        },
+        "linux": {
+          "options": {
+            "env": {
+              "PATH": "${env:PATH}"
+            }
+          }
+        },
+        "windows": {
+          "options": {
+            "env": {
+              "PATH": "${env:PATH}"
+            }
+          }
+        },
+        "group": {
+          "kind": "build",
+          "isDefault": true
+        },
+        "problemMatcher": "$gcc"
+      },
+      {
+        "label": "build skr3 h723 firmware",
+        "type": "shell",
+        "command": "bash ./testbuild.sh Debug STM32 STM32H7 STM32H723 COMBINED btt skr3_h723",
+        "osx": {
+          "options": {
+            "env": {
+              "PATH": "${env:PATH}"
+            }
+          }
+        },
+        "linux": {
+          "options": {
+            "env": {
+              "PATH": "${env:PATH}"
+            }
+          }
+        },
+        "windows": {
+          "options": {
+            "env": {
+              "PATH": "${env:PATH}"
+            }
+          }
+        },
+        "group": {
+          "kind": "build",
+          "isDefault": true
+        },
+        "problemMatcher": "$gcc"
+      },
+            {
+        "label": "build kraken h723 firmware",
+        "type": "shell",
+        "command": "bash ./testbuild.sh Debug STM32 STM32H7 STM32H723 COMBINED btt kraken_h723",
+        "osx": {
+          "options": {
+            "env": {
+              "PATH": "${env:PATH}"
+            }
+          }
+        },
+        "linux": {
+          "options": {
+            "env": {
+              "PATH": "${env:PATH}"
+            }
+          }
+        },
+        "windows": {
+          "options": {
+            "env": {
+              "PATH": "${env:PATH}"
+            }
+          }
+        },
+        "group": {
+          "kind": "build",
+          "isDefault": true
+        },
+        "problemMatcher": "$gcc"
+      },
+      {
+        "label": "build scylla1 h723 firmware",
+        "type": "shell",
+        "command": "bash ./testbuild.sh Debug STM32 STM32H7 STM32H723 COMBINED btt scylla1_0_h723",
+        "osx": {
+          "options": {
+            "env": {
+              "PATH": "${env:PATH}"
+            }
+          }
+        },
+        "linux": {
+          "options": {
+            "env": {
+              "PATH": "${env:PATH}"
+            }
+          }
+        },
+        "windows": {
+          "options": {
+            "env": {
+              "PATH": "${env:PATH}"
+            }
+          }
+        },
+        "group": {
+          "kind": "build",
+          "isDefault": true
+        },
+        "problemMatcher": "$gcc"
+      },
+      {
+        "label": "build super5 pro h723 firmware",
+        "type": "shell",
+        "command": "bash ./testbuild.sh Debug STM32 STM32H7 STM32H723 COMBINED fly super5_h723",
+        "osx": {
+          "options": {
+            "env": {
+              "PATH": "${env:PATH}"
+            }
+          }
+        },
+        "linux": {
+          "options": {
+            "env": {
+              "PATH": "${env:PATH}"
+            }
+          }
+        },
+        "windows": {
+          "options": {
+            "env": {
+              "PATH": "${env:PATH}"
+            }
+          }
+        },
+        "group": {
+          "kind": "build",
+          "isDefault": true
+        },
+        "problemMatcher": "$gcc"
+      },
+      {
+        "label": "build STMF4 IAP",
+        "type": "shell",
+        "command": "make -j8 CORE=STM32 MCU=STM32F4 CONFIG=IAP_SPI_LOADER MAKE_DIR=IAP/makefiles/STM32F4 OUTPUT_NAME=stm32f4_iap_SBC all",
+        "osx": {
+          "options": {
+            "env": {
+              "PATH": "${env:PATH}"
+            }
+          }
+        },
+        "linux": {
+          "options": {
+            "env": {
+              "PATH": "${env:PATH}"
+            }
+          }
+        },
+        "windows": {
+          "options": {
+            "env": {
+              "PATH": "${env:PATH}"
+            }
+          }
+        },
+        "group": {
+          "kind": "build",
+          "isDefault": true
+        },
+        "problemMatcher": "$gcc"
+      },
+      {
+        "label": "build STMH743 IAP",
+        "type": "shell",
+        "command": "make -j8 CORE=STM32 MCU=STM32H7 CONFIG=IAP_SPI_LOADER MAKE_DIR=IAP/makefiles/STM32H7 VARIANT=STM32H743 OUTPUT_NAME=stm32h743_iap_SBC all",
+        "osx": {
+          "options": {
+            "env": {
+              "PATH": "${env:PATH}"
+            }
+          }
+        },
+        "linux": {
+          "options": {
+            "env": {
+              "PATH": "${env:PATH}"
+            }
+          }
+        },
+        "windows": {
+          "options": {
+            "env": {
+              "PATH": "${env:PATH}"
+            }
+          }
+        },
+        "group": {
+          "kind": "build",
+          "isDefault": true
+        },
+        "problemMatcher": "$gcc"
+      },
+      {
+        "label": "build STMH723 IAP",
+        "type": "shell",
+        "command": "make -j8 CORE=STM32 MCU=STM32H7 CONFIG=IAP_SPI_LOADER MAKE_DIR=IAP/makefiles/STM32H7 VARIANT=STM32H723 OUTPUT_NAME=stm32h743_iap_SBC all",
+        "osx": {
+          "options": {
+            "env": {
+              "PATH": "${env:PATH}"
+            }
+          }
+        },
+        "linux": {
+          "options": {
+            "env": {
+              "PATH": "${env:PATH}"
+            }
+          }
+        },
+        "windows": {
+          "options": {
+            "env": {
+              "PATH": "${env:PATH}"
+            }
+          }
+        },
+        "group": {
+          "kind": "build",
+          "isDefault": true
+        },
+        "problemMatcher": "$gcc"
+      },
+      {
+        "label": "build fly super5_h723 IAPBL",
+        "type": "shell",
+        "command": "bash ./testbuildiapbl.sh DEBUG STM32 STM32H7 STM32H723 fly super5_h723",
+        "osx": {
+          "options": {
+            "env": {
+              "PATH": "${env:PATH}"
+            }
+          }
+        },
+        "linux": {
+          "options": {
+            "env": {
+              "PATH": "${env:PATH}"
+            }
+          }
+        },
+        "windows": {
+          "options": {
+            "env": {
+              "PATH": "${env:PATH}"
+            }
+          }
+        },
+        "group": {
+          "kind": "build",
+          "isDefault": true
+        },
+        "problemMatcher": "$gcc"
+      },
+      {
+        "label": "build STMH723 IAPBLSDCAN",
+        "type": "shell",
+        "command": "make -j8 CORE=STM32 MCU=STM32H7 CONFIG=IAP_BOOT_LOADER USE_CAN=1 USE_SD=1 SDTYPE=2 MAKE_DIR=IAP/makefiles/STM32H7 VARIANT=STM32H723 OUTPUT_NAME=stm32h723_bootloader_2_can all",
+        "osx": {
+          "options": {
+            "env": {
+              "PATH": "${env:PATH}"
+            }
+          }
+        },
+        "linux": {
+          "options": {
+            "env": {
+              "PATH": "${env:PATH}"
+            }
+          }
+        },
+        "windows": {
+          "options": {
+            "env": {
+              "PATH": "${env:PATH}"
+            }
+          }
+        },
+        "group": {
+          "kind": "build",
+          "isDefault": true
+        },
+        "problemMatcher": "$gcc"
+      },
+      {
+        "label": "build STMF4 IAPBL",
+        "type": "shell",
+        "command": "make -j8 CORE=STM32 MCU=STM32F4 CONFIG=IAP_BOOT_LOADER SDTYPE=2 MAKE_DIR=IAP/makefiles/STM32F4 OUTPUT_NAME=stm32f4_botloader_2 all",
+        "osx": {
+          "options": {
+            "env": {
+              "PATH": "${env:PATH}"
+            }
+          }
+        },
+        "linux": {
+          "options": {
+            "env": {
+              "PATH": "${env:PATH}"
+            }
+          }
+        },
+        "windows": {
+          "options": {
+            "env": {
+              "PATH": "${env:PATH}"
+            }
+          }
+        },
+        "group": {
+          "kind": "build",
+          "isDefault": true
+        },
+        "problemMatcher": "$gcc"
+      },
+      {
+        "label": "build RP2040 Expansion Firmware",
+        "type": "shell",
+        "command": "make -j8 CORE=RP2040 BOARD=RPI_PICO MAKE_DIR=Duet3Expansion/makefiles all",
+        "osx": {
+          "options": {
+            "env": {
+              "PATH": "${env:PATH}"
+            }
+          }
+        },
+        "linux": {
+          "options": {
+            "env": {
+              "PATH": "${env:PATH}"
+            }
+          }
+        },
+        "windows": {
+          "options": {
+            "env": {
+              "PATH": "${env:PATH}"
+            }
+          }
+        },
+        "group": {
+          "kind": "build",
+          "isDefault": true
+        },
+        "problemMatcher": "$gcc"
+      },
+      {
+        "label": "build Fly36RRF picocan Expansion Firmware",
+        "type": "shell",
+        "command": "make -j8 CORE=RP2040 BOARD=FLY36RRF BOARD_REV=0 CANFLAGS=-DUSE_PICOCAN MAKE_DIR=Duet3Expansion/makefiles OUTPUT_NAME=Duet3Firmware_FLY36RRF all",
+        "osx": {
+          "options": {
+            "env": {
+              "PATH": "${env:PATH}"
+            }
+          }
+        },
+        "linux": {
+          "options": {
+            "env": {
+              "PATH": "${env:PATH}"
+            }
+          }
+        },
+        "windows": {
+          "options": {
+            "env": {
+              "PATH": "${env:PATH}"
+            }
+          }
+        },
+        "group": {
+          "kind": "build",
+          "isDefault": true
+        },
+        "problemMatcher": "$gcc"
+      },
+      {
+        "label": "build FLYSB2040V1_0 picocan Expansion Firmware",
+        "type": "shell",
+        "command": "make -j8 CORE=RP2040 BOARD=FLYSB2040V1_0 BOARD_REV=0 CANFLAGS=-DUSE_PICOCAN MAKE_DIR=Duet3Expansion/makefiles OUTPUT_NAME=Duet3Firmware_FLYSB2040V1_0 all",
+        "osx": {
+          "options": {
+            "env": {
+              "PATH": "${env:PATH}"
+            }
+          }
+        },
+        "linux": {
+          "options": {
+            "env": {
+              "PATH": "${env:PATH}"
+            }
+          }
+        },
+        "windows": {
+          "options": {
+            "env": {
+              "PATH": "${env:PATH}"
+            }
+          }
+        },
+        "group": {
+          "kind": "build",
+          "isDefault": true
+        },
+        "problemMatcher": "$gcc"
+      },
+      {
+        "label": "build Fly36RRF v1 spican Expansion Firmware",
+        "type": "shell",
+        "command": "make -j8 CORE=RP2040 BOARD=FLY36RRF BOARD_REV=1 CANFLAGS=-DUSE_SPICAN MAKE_DIR=Duet3Expansion/makefiles OUTPUT_NAME=Duet3Firmware_FLY36RRF all",
+        "osx": {
+          "options": {
+            "env": {
+              "PATH": "${env:PATH}"
+            }
+          }
+        },
+        "linux": {
+          "options": {
+            "env": {
+              "PATH": "${env:PATH}"
+            }
+          }
+        },
+        "windows": {
+          "options": {
+            "env": {
+              "PATH": "${env:PATH}"
+            }
+          }
+        },
+        "group": {
+          "kind": "build",
+          "isDefault": true
+        },
+        "problemMatcher": "$gcc"
+      },
+      {
+        "label": "build SHT36 v3 prototype spican Expansion Firmware",
+        "type": "shell",
+        "command": "make -j8 CORE=RP2040 BOARD=SHT36 BOARD_REV=300 CANFLAGS=-DUSE_SPICAN MAKE_DIR=Duet3Expansion/makefiles OUTPUT_NAME=Duet3Firmware_SHT36V3 all",
+        "osx": {
+          "options": {
+            "env": {
+              "PATH": "${env:PATH}"
+            }
+          }
+        },
+        "linux": {
+          "options": {
+            "env": {
+              "PATH": "${env:PATH}"
+            }
+          }
+        },
+        "windows": {
+          "options": {
+            "env": {
+              "PATH": "${env:PATH}"
+            }
+          }
+        },
+        "group": {
+          "kind": "build",
+          "isDefault": true
+        },
+        "problemMatcher": "$gcc"
+      },
+      {
+        "label": "build SHT36 MAX v3 spican Expansion Firmware",
+        "type": "shell",
+        "command": "make -j8 CORE=RP2040 BOARD=SHT36 BOARD_REV=301 CANFLAGS=-DUSE_SPICAN MAKE_DIR=Duet3Expansion/makefiles OUTPUT_NAME=Duet3Firmware_SHT36MAX3 all",
+        "osx": {
+          "options": {
+            "env": {
+              "PATH": "${env:PATH}"
+            }
+          }
+        },
+        "linux": {
+          "options": {
+            "env": {
+              "PATH": "${env:PATH}"
+            }
+          }
+        },
+        "windows": {
+          "options": {
+            "env": {
+              "PATH": "${env:PATH}"
+            }
+          }
+        },
+        "group": {
+          "kind": "build",
+          "isDefault": true
+        },
+        "problemMatcher": "$gcc"
+      },      
+      {
+        "label": "build FLY M2 spican Expansion Firmware",
+        "type": "shell",
+        "command": "make -j8 CORE=RP2040 BOARD=FLYM2 BOARD_REV=1 CANFLAGS=-DUSE_SPICAN MAKE_DIR=Duet3Expansion/makefiles OUTPUT_NAME=Duet3Firmware_FLYM2 all",
+        "osx": {
+          "options": {
+            "env": {
+              "PATH": "${env:PATH}"
+            }
+          }
+        },
+        "linux": {
+          "options": {
+            "env": {
+              "PATH": "${env:PATH}"
+            }
+          }
+        },
+        "windows": {
+          "options": {
+            "env": {
+              "PATH": "${env:PATH}"
+            }
+          }
+        },
+        "group": {
+          "kind": "build",
+          "isDefault": true
+        },
+        "problemMatcher": "$gcc"
+      },
+      {
+        "label": "build FLYSB2040 v3 spican Expansion Firmware",
+        "type": "shell",
+        "command": "make -j8 CORE=RP2040 BOARD=FLYSB2040V3_0 BOARD_REV=3 CANFLAGS=-DUSE_SPICAN MAKE_DIR=Duet3Expansion/makefiles OUTPUT_NAME=Duet3Firmware_FLYSB2040V3_0 all",
+        "osx": {
+          "options": {
+            "env": {
+              "PATH": "${env:PATH}"
+            }
+          }
+        },
+        "linux": {
+          "options": {
+            "env": {
+              "PATH": "${env:PATH}"
+            }
+          }
+        },
+        "windows": {
+          "options": {
+            "env": {
+              "PATH": "${env:PATH}"
+            }
+          }
+        },
+        "group": {
+          "kind": "build",
+          "isDefault": true
+        },
+        "problemMatcher": "$gcc"
+      },
+      {
+        "label": "build FLYSB2040 v3 pro spican Expansion Firmware",
+        "type": "shell",
+        "command": "make -j8 CORE=RP2040 BOARD=FLYSB2040V3_0 BOARD_REV=103 CANFLAGS=-DUSE_SPICAN MAKE_DIR=Duet3Expansion/makefiles OUTPUT_NAME=Duet3Firmware_FLYSB2040PROV3_0 all",
+        "osx": {
+          "options": {
+            "env": {
+              "PATH": "${env:PATH}"
+            }
+          }
+        },
+        "linux": {
+          "options": {
+            "env": {
+              "PATH": "${env:PATH}"
+            }
+          }
+        },
+        "windows": {
+          "options": {
+            "env": {
+              "PATH": "${env:PATH}"
+            }
+          }
+        },
+        "group": {
+          "kind": "build",
+          "isDefault": true
+        },
+        "problemMatcher": "$gcc"
+      },
+      {
+        "label": "build MKSTHR3642 picocan Expansion Firmware",
+        "type": "shell",
+        "command": "make -j8 CORE=RP2040 BOARD=MKSTHR3642 BOARD_REV=1 CANFLAGS=-DUSE_PICOCAN MAKE_DIR=Duet3Expansion/makefiles OUTPUT_NAME=Duet3Firmware_MKSTHR3642v1_0 all",
+        "osx": {
+          "options": {
+            "env": {
+              "PATH": "${env:PATH}"
+            }
+          }
+        },
+        "linux": {
+          "options": {
+            "env": {
+              "PATH": "${env:PATH}"
+            }
+          }
+        },
+        "windows": {
+          "options": {
+            "env": {
+              "PATH": "${env:PATH}"
+            }
+          }
+        },
+        "group": {
+          "kind": "build",
+          "isDefault": true
+        },
+        "problemMatcher": "$gcc"
+      },
+      {
+        "label": "build PITBv1.0 picocan Expansion Firmware",
+        "type": "shell",
+        "command": "make -j8 CORE=RP2040 BOARD=PITBV1_0 BOARD_REV=0 CANFLAGS=-DUSE_PICOCAN MAKE_DIR=Duet3Expansion/makefiles OUTPUT_NAME=Duet3Firmware_PITBV1_0 all",
+        "osx": {
+          "options": {
+            "env": {
+              "PATH": "${env:PATH}"
+            }
+          }
+        },
+        "linux": {
+          "options": {
+            "env": {
+              "PATH": "${env:PATH}"
+            }
+          }
+        },
+        "windows": {
+          "options": {
+            "env": {
+              "PATH": "${env:PATH}"
+            }
+          }
+        },
+        "group": {
+          "kind": "build",
+          "isDefault": true
+        },
+        "problemMatcher": "$gcc"
+      },
+      {
+        "label": "build PITBv2.0 spican Expansion Firmware",
+        "type": "shell",
+        "command": "make -j8 CORE=RP2040 BOARD=PITBV2_0 BOARD_REV=0 CANFLAGS=-DUSE_SPICAN MAKE_DIR=Duet3Expansion/makefiles OUTPUT_NAME=Duet3Firmware_PITBV2_0 all",
+        "osx": {
+          "options": {
+            "env": {
+              "PATH": "${env:PATH}"
+            }
+          }
+        },
+        "linux": {
+          "options": {
+            "env": {
+              "PATH": "${env:PATH}"
+            }
+          }
+        },
+        "windows": {
+          "options": {
+            "env": {
+              "PATH": "${env:PATH}"
+            }
+          }
+        },
+        "group": {
+          "kind": "build",
+          "isDefault": true
+        },
+        "problemMatcher": "$gcc"
+      },
+      {
+        "label": "build StrideMaxv2.0 spican Expansion Firmware",
+        "type": "shell",
+        "command": "make -j8 CORE=RP2040 BOARD=STRIDEMAXV2_0 BOARD_REV=0 CANFLAGS=-DUSE_SPICAN MAKE_DIR=Duet3Expansion/makefiles OUTPUT_NAME=Duet3Firmware_STRIDEMAXV2_0 all",
+        "osx": {
+          "options": {
+            "env": {
+              "PATH": "${env:PATH}"
+            }
+          }
+        },
+        "linux": {
+          "options": {
+            "env": {
+              "PATH": "${env:PATH}"
+            }
+          }
+        },
+        "windows": {
+          "options": {
+            "env": {
+              "PATH": "${env:PATH}"
+            }
+          }
+        },
+        "group": {
+          "kind": "build",
+          "isDefault": true
+        },
+        "problemMatcher": "$gcc"
+      },
+      {
+        "label": "build FYSETCSB2040V2 picocan Expansion Firmware",
+        "type": "shell",
+        "command": "make -j8 CORE=RP2040 BOARD=FYSETCSB2040V2 BOARD_REV=0 CANFLAGS=-DUSE_SPICAN MAKE_DIR=Duet3Expansion/makefiles OUTPUT_NAME=Duet3Firmware_FSSB2040V2 all",
+        "osx": {
+          "options": {
+            "env": {
+              "PATH": "${env:PATH}"
+            }
+          }
+        },
+        "linux": {
+          "options": {
+            "env": {
+              "PATH": "${env:PATH}"
+            }
+          }
+        },
+        "windows": {
+          "options": {
+            "env": {
+              "PATH": "${env:PATH}"
+            }
+          }
+        },
+        "group": {
+          "kind": "build",
+          "isDefault": true
+        },
+        "problemMatcher": "$gcc"
+      },
+      {
+        "label": "clean firmware",
+        "type": "shell",
+        "command": "make MAKE_DIR=RepRapFirmware/makefiles/STM32F4 clean distclean",
+        "group": {
+          "kind": "build",
+          "isDefault": true
+        },
+        "problemMatcher": "$gcc"
+      },
+      {
+        "label": "clean IAP",
+        "type": "shell",
+        "command": "make MAKE_DIR=IAP/makefiles/STM32F4 clean distclean",
+        "group": {
+          "kind": "build",
+          "isDefault": true
+        },
+        "problemMatcher": "$gcc"
+      },
+      {
+        "label": "clean Expansion",
+        "type": "shell",
+        "command": "make MAKE_DIR=Duet3Expansion/makefiles clean distclean",
+        "group": {
+          "kind": "build",
+          "isDefault": true
+        },
+        "problemMatcher": "$gcc"
+      },
+      {
+        "label": "upload firmware",
+        "type": "shell",
+        "command": "make MAKE_DIR=RepRapFirmware/makefiles/STM32F4 upload",
+        "group": {
+          "kind": "build",
+          "isDefault": true
+        },
+        "problemMatcher": "$gcc"
+      },
+      {
+        "label": "upload STM32H7 firmware",
+        "type": "shell",
+        "command": "make MAKE_DIR=RepRapFirmware/makefiles/STM32H7 CORE=STM32 MCU=STM32H7 upload",
+        "group": {
+          "kind": "build",
+          "isDefault": true
+        },
+        "problemMatcher": "$gcc"
+      }
+      {
+        "label": "upload STM32H723 firmware",
+        "type": "shell",
+        "command": "make MAKE_DIR=RepRapFirmware/makefiles/STM32H7 CORE=STM32 MCU=STM32H7 NETWORK=WIFI VARIANT=STM32H723 upload",
+        "group": {
+          "kind": "build",
+          "isDefault": true
+        },
+        "problemMatcher": "$gcc"
+      }
+    ]
+  }
